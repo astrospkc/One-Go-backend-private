@@ -1,0 +1,70 @@
+Why using fiber framework?
+- beacuse of its various benefits
+- Zero Allocation
+- As a rule of thumb, you must only use context values within the handler, and you must not keep any references. 
+- the wrong code :
+- ``` func handler(c *fiber.Ctx) error {
+    go asyncFunc(c) // ❌ BAD! Do not do this
+    return nil
+}
+
+func asyncFunc(c *fiber.Ctx) {
+    fmt.Println(c.Params("id")) // Might panic or give wrong data
+}```
+- the right way: 
+- ```func handler(c *fiber.Ctx) error {
+    id := c.Params("id") // ✅ Safe to store
+    go asyncFunc(id)     // ✅ Now you're using plain string, not context
+    return nil
+}
+
+func asyncFunc(id string) {
+    fmt.Println("Async task for:", id)
+}```
+### What is cursor in mongodb?
+- A cursor is a mechanism that allows an application to iterate over database results while holding only a subset of them in memory at a given time. Read operations that match multiple documents use a cursor to return those documents in batches rather than all at once.
+
+
+upsert -> update + insert
+
+-------
+Q. When I turned my model into pointer , I faced that no route is working as it was previously working. let's see what happened here.
+- ``` panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV … addr=0x8 …]```
+this is what got as an error.
+your code tried to dereference a pointer that was nil
+
+
+
+--------
+Q. While creating project.
+- the result I am getting:
+ {
+        "id": "67fb26ba6f4c391f80f7bfa2",
+        "user_id": "67fb24e4e05aaf77513b495a",
+        "title": "what the hell",
+        "description": "description of the body",
+        "tags": "",
+        "thumbnail": "",
+        "githublink": "",
+        "liveddemolink": "",
+        "time": "0001-01-01T00:00:00Z"
+    }
+
+and the result that is storing in db
+{
+_id:67fb26ba4031aae1c2d61694
+id:Binary.createFromBase64('Z/smum9MOR+A97+i', 0)
+user_id:Binary.createFromBase64('Z/sk5OBar3dRO0la', 0)
+title:"what the hell"
+description:"description of the body"
+time:0001-01-01T00:00:00.000+00:00
+}
+
+Q. Id 	primitive.ObjectID	`bson:"id,omitempty" json:"id"`
+In this above formate, why the format is like this ? Find the reason
+
+
+
+if db_collection := [10]*mongo.Collection{...}
+then But you’re only providing 5 collections (or maybe 6–7 depending on your actual definitions), so the rest are nil, which causes a runtime panic when you do:

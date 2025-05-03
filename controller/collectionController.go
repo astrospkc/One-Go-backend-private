@@ -4,12 +4,22 @@ import (
 	"context"
 	"gobackend/connect"
 	"gobackend/models"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+type Collection struct{
+	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	UserId		 primitive.ObjectID 	`bson:"user_id" json:"user_id"`
+	Title 		string `bson:"title" json:"title"`
+	Description	string `bson:"description" json:"description"`
+	TotalProject int64 `bson:"total_project" json:"total_project"`
+	CreatedAt	time.Time	`bson:"time" json:"time"`
+}
 
 func CreateCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error {

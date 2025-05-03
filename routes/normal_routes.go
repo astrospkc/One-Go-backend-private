@@ -27,6 +27,7 @@ func RegisterNormalRoutes(app *fiber.App){
 	
 	project.Post("/createProject/:col_id", controller.CreateProject())
 	project.Put("/updateProject/:projectid", controller.UpdateProject())
+	project.Get("/getAllProject", controller.GetAllProject())
 	project.Get("/readProject/:col_id", controller.ReadProject())
 	project.Get("/readProjectWithId/:projectid",controller.FindOneViaPID())
 	project.Delete("/deleteProject/:projectid",controller.DeleteProject())

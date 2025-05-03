@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -50,6 +49,6 @@ func CreatePresignedUrlAndUploadObject(bucketName string , key string) (string, 
 		log.Fatal("failed to generate presigned URL:", err)
 	}
 
-	fmt.Println("Presigned URL:", presignedURL.URL)
+	// fmt.Println("Presigned URL:", presignedURL.URL)
 	return presignedURL.URL, nil
 }

@@ -90,6 +90,39 @@ func CreateProject() fiber.Handler {
 	}
 }
 
+func GetAllProject() fiber.Handler{
+	return func(c *fiber.Ctx) error{
+		user := c.Locals("user")
+		claims, ok:=user.(jwt.MapClaims)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid JWT claims format",
+			})
+		}
+		user_id, ok:=claims["aud"].(string)
+	
+		id, err:= primitive.ObjectIDFromHex(user_id)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "id format is not valid",
+			})
+		}
+		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":id})
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No collection could be found",
+			})
+		}
+		var collections []models.Collection
+		if err := cursor.All(context.TODO(), &collections); err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to parse project data",
+			})
+		}
+		return c.JSON(collections)
+
+	}
+}
 func ReadProject() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		col_id := c.Params("col_id")

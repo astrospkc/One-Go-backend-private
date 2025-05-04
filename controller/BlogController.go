@@ -20,6 +20,7 @@ type Blog struct{
 	Content		string	`bson:"content" json:"content"`
 	Tags		string	`bson:"tags,omitempty" json:"tags"`
 	CoverImage 	string	`bson:"coverImage,omitempty" json:"coverImage"`
+	Status		string 	`bson:"status,omitempty" json:"status"`
 	
 }
 
@@ -66,6 +67,7 @@ func CreateBlog() fiber.Handler{
 			Content: p.Content,
 			Tags:p.Tags,
 			CoverImage: p.CoverImage,
+			Status:p.Status,
 			
 		}
 

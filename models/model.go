@@ -55,7 +55,8 @@ type Blog struct{
 	Tags		string	`bson:"tags,omitempty" json:"tags"`
 	CoverImage 	string	`bson:"coverImage,omitempty" json:"coverImage"`
 	Published 	time.Time	`bson:"published" json:"published "`
-	CreatedAt	time.Time	`bson:"time" jsonjson:"time"`
+	CreatedAt	time.Time	`bson:"time" json:"time"`
+	Status		string 		`bson:"status" json:"status"`
 }
 
 type Media struct{

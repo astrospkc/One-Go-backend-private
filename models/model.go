@@ -51,11 +51,13 @@ type Blog struct{
 	UserId		string 	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
 	Title		string	`bson:"title" json:"title"`
-	Content		string	`bson:"content" json:"content"`
+	Description	string  `bson:"description" json:"description"`
+	Content		map[string]interface{}	`bson:"content" json:"content"`
 	Tags		string	`bson:"tags,omitempty" json:"tags"`
 	CoverImage 	string	`bson:"coverImage,omitempty" json:"coverImage"`
-	Published 	time.Time	`bson:"published" json:"published "`
+	Published 	time.Time	`bson:"published" json:"published"`
 	CreatedAt	time.Time	`bson:"time" json:"time"`
+	LastEdited  time.Time   `bson:"lastedited" json:"lastedited"`
 	Status		string 		`bson:"status" json:"status"`
 }
 

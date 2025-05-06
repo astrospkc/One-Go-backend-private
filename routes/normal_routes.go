@@ -36,7 +36,8 @@ func RegisterNormalRoutes(app *fiber.App){
 	blog := app.Group("/blog", middleware.FetchUser())
 
 	blog.Post("/createBlog/:col_id",controller.CreateBlog())
-	blog.Get("/readAllBlog/:col_id", controller.ReadBlog())
+	blog.Get("/readAllBlog", controller.ReadBlog())
+	blog.Get("/readAllBlogWithCol_id/:col_id", controller.ReadBlogWithCollectionId())
 	blog.Get("/readOneBlog/:blogid", controller.ReadBlogWIthId())
 	blog.Put("/updateBlog/:blogid",controller.UpdateBlogWithBlogId())
 	blog.Delete("/deleteBlog/:blogid", controller.DeleteBlog())

@@ -4,6 +4,7 @@ import (
 	"context"
 	"gobackend/connect"
 	"gobackend/models"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,9 +19,11 @@ type Blog struct{
 	UserId		string 	`bson:"user_id" json:"user_id"`
 	Title		string	`bson:"title" json:"title"`
 	Content		string	`bson:"content" json:"content"`
+	Description string  `bson:"description" json:"description"`
 	Tags		string	`bson:"tags,omitempty" json:"tags"`
 	CoverImage 	string	`bson:"coverImage,omitempty" json:"coverImage"`
 	Status		string 	`bson:"status,omitempty" json:"status"`
+	LastEdited	time.Time `bson:"lastedited" json:"lastedited"`
 	
 }
 
@@ -65,11 +68,15 @@ func CreateBlog() fiber.Handler{
 			CollectionId: id,
 			Title: p.Title,
 			Content: p.Content,
+			Description: p.Description,
 			Tags:p.Tags,
 			CoverImage: p.CoverImage,
 			Status:p.Status,
 			
 		}
+		blog.Published = time.Now()
+		blog.CreatedAt = time.Now()
+		blog.LastEdited = time.Now()
 
 		_,err = connect.BlogsCollection.InsertOne(context.Background(), blog)
 		if err!=nil{
@@ -116,6 +123,36 @@ func ReadBlog() fiber.Handler{
 		return c.JSON(blogs)
 	}
 }
+
+func ReadBlogWithCollectionId() fiber.Handler{
+	return func(c *fiber.Ctx) error {
+		c_id := c.Params("col_id")
+		if c_id==""{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"Please provide project id",
+			})
+		}
+		col_id, err := primitive.ObjectIDFromHex(c_id)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid collection ID format",})
+		}
+
+		cursor, err := connect.BlogsCollection.Find(context.TODO(), bson.M{"collection_id":col_id})
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"No Blogs could be found",
+			})
+		}
+		var blogs []models.Blog
+		if err:= cursor.All(context.TODO(), &blogs); err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":"Failed to parse blogs data",
+			})
+		}
+		return c.JSON(blogs)
+	}
+}
+
 func ReadBlogWIthId() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		p_id:= c.Params("blogid")
@@ -167,6 +204,8 @@ func UpdateBlogWithBlogId() fiber.Handler{
 				"error":"invalid JSON",
 			})
 		}
+		
+		upd.LastEdited = time.Now()
 
 		setBlog, err := setBlog(&upd)
 		if err != nil {
@@ -175,6 +214,8 @@ func UpdateBlogWithBlogId() fiber.Handler{
         if len(setBlog) == 0 {
             return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "No fields provided to update"})
         }
+
+		setBlog["lastedited"] = time.Now()
 
 		objId, err := primitive.ObjectIDFromHex(b_id)
 		if err!=nil{

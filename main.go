@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"gobackend/connect"
 	"gobackend/routes"
-	"gobackend/services"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -26,9 +24,7 @@ func main() {
 	routes.RegisterNormalRoutes(app)
 	routes.RegisterAPIKeyRoutes(app)
 
-	_, err := services.CreatePresignedUrlAndUploadObject("cms-one-go", "img.jpg")
-	if err != nil {
-		log.Fatalf("Failed to generate URL: %v", err)
-	}
+	
+
 	app.Listen(":8000")
 }

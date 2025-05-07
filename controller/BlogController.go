@@ -55,6 +55,8 @@ func CreateBlog() fiber.Handler{
 			})
 		}
 
+	
+
 		var p models.Blog
 		if err := c.BodyParser(&p); err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

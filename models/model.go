@@ -65,9 +65,10 @@ type Media struct{
 	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
 	UserId		string 	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
-	FileUrl		string	`bson:"fileurl" json:"fileurl"`
-	Type		string	`bson:"content" json:"content"` 
-	FileName	string	`bson:"filename" json:"filename"`
+	Key         string 			`bson:"key" json:"key"`
+	// File        multipart.File 	`bson:"file" json:"file"`
+	Title 		string	`bson:"title" json:"title"`
+	Content		string	`bson:"content" json:"content"`
 	CreatedAt	time.Time	`bson:"time" json:"time"`
 }
 // type (image, video, audio, doc, pdf, etc.)

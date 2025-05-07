@@ -40,3 +40,5 @@ func GetUserViaId(user_id string) (UserResponse, error)  {
 	return foundUser, err
 	
 }
+
+

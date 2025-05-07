@@ -53,4 +53,8 @@ func RegisterNormalRoutes(app *fiber.App){
 	link.Put("/updateLink/:linkid", controller.UpdateLinkWithLinkId())
 	link.Delete("/deleteLink/:linkid", controller.DeleteLinkWithLinkId())
 	link.Delete("/deleteAllLink", controller.DeleteAllLinks())
+
+	media := app.Group("/media", middleware.FetchUser())
+	media.Post("/postmedia/:col_id", controller.PostMedia())
+	media.Get("/getALlMediaFiles/:col_id", controller.GetAllMediaFiles())
 }

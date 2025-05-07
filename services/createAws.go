@@ -1,8 +1,12 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -14,7 +18,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func CreatePresignedUrlAndUploadObject(bucketName string , key string) (string, error){
+func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data[]byte, contentType string) (string, error){
 	err := godotenv.Load(".env.prod") // or ".env.prod"
 	if err != nil {
 		log.Fatal("Error loading env file")
@@ -30,6 +34,7 @@ func CreatePresignedUrlAndUploadObject(bucketName string , key string) (string, 
 	if err != nil {
 		log.Fatal("failed to load config:", err)
 	}
+	
 
 	client := s3.NewFromConfig(cfg)
 
@@ -37,11 +42,10 @@ func CreatePresignedUrlAndUploadObject(bucketName string , key string) (string, 
 
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
-		Key:    aws.String(key),
-		ACL: "public-read",
-	
+		Key:    aws.String(objectKey),
 	}
-
+	// handle progress operation also
+	// this is generating presigned url
 	presignedURL, err := presignClient.PresignPutObject(context.TODO(), params, func(opts *s3.PresignOptions) {
 		opts.Expires = time.Hour // expires in 1 hour
 	})
@@ -49,6 +53,30 @@ func CreatePresignedUrlAndUploadObject(bucketName string , key string) (string, 
 		log.Fatal("failed to generate presigned URL:", err)
 	}
 
+	// now put operation to upload it to s3
+	httpreq, err:= http.NewRequest("PUT",presignedURL.URL, bytes.NewReader(data))
+	if err!=nil{
+		return "",err
+	}
+
+	httpreq.Header.Set("Content-Type",contentType)
+	clientHttp:= &http.Client{}
+	resp,err:=clientHttp.Do(httpreq)
+	if err!=nil{
+		return "",err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode !=http.StatusOK{
+		body,_ := io.ReadAll(resp.Body)
+		return "",fmt.Errorf("error while uploading %s %s", resp.Status, body)
+	}
+
+
+
+
 	// fmt.Println("Presigned URL:", presignedURL.URL)
-	return presignedURL.URL, nil
+	return  presignedURL.URL, nil
 }
+
+// here I am gettng presignedUrl , which is letting me to upload file 

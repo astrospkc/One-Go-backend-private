@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"fmt"
-	"os"
+	"gobackend/env"
 	"strings"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 
 func FetchUser() fiber.Handler{
 	return func(c *fiber.Ctx) error {
+		envs := env.NewEnv()
 		authHeader := c.Get("Authorization")
 		if authHeader==""||!strings.HasPrefix(authHeader, "Bearer "){
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -20,7 +21,7 @@ func FetchUser() fiber.Handler{
 		}
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		// fmt.Println("the tokenstring in middleware: ", tokenString)
-		secret := os.Getenv("JWT_SECRET")
+		secret := envs.JWT_SECRET
 		// fmt.Println("the secret: ", secret)
 		if secret == "" {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

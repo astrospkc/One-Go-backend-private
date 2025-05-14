@@ -18,7 +18,7 @@ func RegisterNormalRoutes(app *fiber.App){
 	auth.Get("/getUser",middleware.FetchUser(), controller.GetUser())
 
 	// handling collections routes
-	col := app.Group("/collection", middleware.FetchUser())
+	col := app.Group("/collection")
 	col.Post("/createCollection", controller.CreateCollection())
 	col.Get("/getAllCollection", controller.GetAllCollection())
 	

@@ -6,7 +6,6 @@ import (
 	"gobackend/models"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -25,19 +24,11 @@ type LinkResponse struct{
 }
 func CreateLink() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		user := c.Locals("user")
-		claims,ok:=user.(jwt.MapClaims)
-		if !ok{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error":"Invalid JWT claims format",
-			})
-		}
-
-		user_id,ok:=claims["aud"].(string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error":"Invalid or missing and field",
-			})
+		user_id, err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":"failed to fetch user_id",
+		})
 		}
 
 		var p models.Link
@@ -57,7 +48,7 @@ func CreateLink() fiber.Handler{
 			Description: p.Description,
 			Category: p.Category,
 		}
-		_,err := connect.LinksCollection.InsertOne(context.Background(),link)
+		_,err = connect.LinksCollection.InsertOne(context.Background(),link)
 		if err!=nil{
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error":"looks like some informaton are missing , try again",
@@ -70,19 +61,11 @@ func CreateLink() fiber.Handler{
 
 func ReadLink() fiber.Handler{
 	return func(c *fiber.Ctx) error {
-		user := c.Locals("user")
-		claims,ok := user.(jwt.MapClaims)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
-			})
-		}
-
-		user_id, ok := claims["aud"].(string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or missing  aud field",
-			})
+		user_id, err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":"failed to fetch user_id",
+		})
 		}
 		
 		cursor, err := connect.LinksCollection.Find(context.TODO(),bson.M{"user_id":user_id})
@@ -212,19 +195,11 @@ func DeleteLinkWithLinkId() fiber.Handler{
 
 func DeleteAllLinks() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		user := c.Locals("user")
-		claims,ok := user.(jwt.MapClaims)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
-			})
-		}
-
-		user_id, ok := claims["aud"].(string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or missing  aud field",
-			})
+		user_id, err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":"failed to fetch user_id",
+		})
 		}
 		result,err := connect.LinksCollection.DeleteMany(context.Background(),bson.M{"user_id":user_id})
 		if err!=nil{

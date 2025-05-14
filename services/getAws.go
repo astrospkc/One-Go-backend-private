@@ -3,8 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-
-	"os"
+	"gobackend/env"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -21,12 +20,13 @@ import (
 // }
 
 func GetPresignedGetUrl(bucketName, fileKey string) (string, error) {
+	envs:= env.NewEnv()
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("us-east-1"),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				os.Getenv("AWS_ACCESS_KEY_ID"),
-				os.Getenv("AWS_SECRET_ACCESS_KEY"),
+				envs.AWS_ACCESS_KEY_ID,
+				envs.AWS_SECRET_ACCESS_KEY,
 				"",
 			),
 		),

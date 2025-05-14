@@ -12,34 +12,44 @@ import (
 func RegisterAPIKeyRoutes(app *fiber.App){
 		// handling normal routings
 
-	auth:= app.Group("/api/auth")
-	auth.Get("/getUser",middleware.FetchUser(), controller.GetUser())
+	auth:= app.Group("/api/auth", middleware.ValidateAPIKey())
+	auth.Get("/getUser", controller.GetUser())
+
+	collection:=app.Group("/api/collection", middleware.ValidateAPIKey())
+	collection.Post("/createCollection", controller.CreateCollection())
+	collection.Get("/getAllCollection", controller.GetAllCollection())
 	
 	// handling normal routings with auth middleware
-	project := app.Group("/api/project", middleware.FetchUser())
+	project := app.Group("/api/project", middleware.ValidateAPIKey())
 	
-	project.Post("/createProjet", controller.CreateProject())
+	project.Post("/createProject", controller.CreateProject())
 	project.Put("/updateProject/:projectid", controller.UpdateProject())
 	project.Get("/readProject", controller.ReadProject())
 	project.Get("/readProjectWithId/:projectid",controller.FindOneViaPID())
 	project.Delete("/deleteProject/:projectid",controller.DeleteProject())
 	// Blog-section
-	blog := app.Group("/api/blog", middleware.FetchUser())
+	blog := app.Group("/api/blog", middleware.ValidateAPIKey())
 
-	blog.Post("/createBlog",controller.CreateBlog())
-	blog.Get("/readBlog", controller.ReadBlog())
-	blog.Get("/readBlog/:blogid", controller.ReadBlogWIthId())
+	blog.Post("/createBlog/:col_id",controller.CreateBlog())
+	blog.Get("/readAllBlog", controller.ReadBlog())
+	blog.Get("/readAllBlogWithCol_id/:col_id", controller.ReadBlogWithCollectionId())
+	blog.Get("/readOneBlog/:blogid", controller.ReadBlogWIthId())
 	blog.Put("/updateBlog/:blogid",controller.UpdateBlogWithBlogId())
 	blog.Delete("/deleteBlog/:blogid", controller.DeleteBlog())
+	blog.Delete("/deleteAllBlog/:col_id", controller.DeleteAllBlog())
 	
 	
 	// Link section
 	// this section can be made as your second brain
-	link := app.Group("/api/link", middleware.FetchUser())
+	link := app.Group("/api/link", middleware.ValidateAPIKey())
 	link.Post("/createLink",  controller.CreateLink())
 	link.Get("/readLink",  controller.ReadLink())
 	link.Get("/readLink/:linkid",  controller.ReadLinkWithLinkId())
 	link.Put("/updateLink/:linkid", controller.UpdateLinkWithLinkId())
 	link.Delete("/deleteLink/:linkid", controller.DeleteLinkWithLinkId())
 	link.Delete("/deleteAllLink", controller.DeleteAllLinks())
+
+	media := app.Group("/api/media", middleware.ValidateAPIKey())
+	media.Post("/postmedia/:col_id", controller.PostMedia())
+	media.Get("/getALlMediaFiles/:col_id", controller.GetAllMediaFiles())
 }

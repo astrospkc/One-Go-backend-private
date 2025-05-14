@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"gobackend/env"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,17 +15,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/joho/godotenv"
 )
 
 func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data[]byte, contentType string) (string, error){
-	err := godotenv.Load(".env.prod") // or ".env.prod"
-	if err != nil {
-		log.Fatal("Error loading env file")
-	}
+	envs := env.NewEnv()
 
-	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
-	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	accessKey := envs.AWS_ACCESS_KEY_ID
+	secretKey :=envs.AWS_SECRET_ACCESS_KEY
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("us-east-1"),

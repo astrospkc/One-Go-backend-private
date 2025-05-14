@@ -19,7 +19,7 @@ type User struct {
 
 type Collection struct{
 	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
-	UserId		 primitive.ObjectID 	`bson:"user_id" json:"user_id"`
+	UserId	string 	`bson:"user_id" json:"user_id"`
 	Title 		string `bson:"title" json:"title"`
 	Description	string `bson:"description" json:"description"`
 	CreatedAt	time.Time	`bson:"time" json:"time"`
@@ -27,7 +27,7 @@ type Collection struct{
 
 type Project struct{
 	Id           primitive.ObjectID `bson:"id,omitempty" json:"id"`
-	UserId		 primitive.ObjectID 	`bson:"user_id" json:"user_id"`
+	UserId		 string	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
 	Title		 string	`bson:"title" json:"title"`
 	Description	 string	`bson:"description,omitempty" json:"description"`
@@ -48,7 +48,7 @@ type Category struct {
 
 type Blog struct{
 	Id           primitive.ObjectID `bson:"id,omitempty" json:"id"`
-	UserId		string 	`bson:"user_id" json:"user_id"`
+	UserId		 string 	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
 	Title		string	`bson:"title" json:"title"`
 	Description	string  `bson:"description" json:"description"`
@@ -63,7 +63,7 @@ type Blog struct{
 
 type Media struct{
 	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
-	UserId		string 	`bson:"user_id" json:"user_id"`
+	UserId		 string 	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
 	Key         string 			`bson:"key" json:"key"`
 	// File        multipart.File 	`bson:"file" json:"file"`
@@ -74,7 +74,7 @@ type Media struct{
 // type (image, video, audio, doc, pdf, etc.)
 type Link struct{
 	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
-	UserId		string 	`bson:"user_id" json:"user_id"`
+	UserId		 string 	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
 	Source		string	`bson:"source,omitempty" json:"source"`
 	Title		string	`bson:"title,omitempty" json:"title"`
@@ -102,7 +102,7 @@ type SubscriptionPlan struct {
 
 type UserSubscription struct {
 	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
-	Userid		string		`bson:"user_id" json:"user_id"`
+	UserId		string 	`bson:"user_id" json:"user_id"`
 	PlanId 		string		`bson:"plan_id" json:"plan_id"`
 	StartDate	time.Time	`bson:"startDate" json:"startDate"`
 	EndDate		time.Time	`bson:"endDate" json:"endDate"`
@@ -112,7 +112,7 @@ type UserSubscription struct {
 // status- active or expired
 type APIkey struct{
 	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
-	Userid		string	`bson:"user_id" json:"user_id"`
+	UserId		string	`bson:"user_id" json:"user_id"`
 	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
 	Key 		string	`bson:"key" json:"key"`
 	UsageLimit	int64	`bson:"usagelimit" json:"usagelimit"`

@@ -5,17 +5,17 @@ import (
 	"context"
 	"fmt"
 	"gobackend/connect"
+	"gobackend/env"
 	"gobackend/models"
 	"gobackend/services"
 	"io"
 	"log"
-	"os"
+
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -31,6 +31,7 @@ import (
 func PostMedia() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		// get the url , get the body
+		envs:= env.NewEnv()
 		col_id := c.Params("col_id")
 		id,err := primitive.ObjectIDFromHex(col_id)
 		if err!=nil{
@@ -38,18 +39,10 @@ func PostMedia() fiber.Handler{
 				"error":"id format not valid",
 			})
 		}
-		user:= c.Locals("user")
-		claims,ok:=user.(jwt.MapClaims)
-		if !ok{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error":"Invalid Jwt claims format",
-			})
-		}
-
-		user_id, ok:= claims["aud"].(string)
-		if !ok{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error":"Invalid or missing aud field",
+		user_id, err:=FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"error while fetching userid",
 			})
 		}
 		me := new(models.Media)
@@ -86,7 +79,7 @@ func PostMedia() fiber.Handler{
 			})
 		}
 		
-		bucketName:=os.Getenv("S3_BUCKET_NAME")
+		bucketName:=envs.S3_BUCKET_NAME
 		objectKey:=fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
 		_, err = services.CreatePresignedUrlAndUploadObject(bucketName, objectKey,buf.Bytes(),mimeType)
 		if err != nil {

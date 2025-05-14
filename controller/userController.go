@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"gobackend/connect"
+	"gobackend/env"
 	"gobackend/models"
 	"log"
-	"os"
 
 	"time"
 
@@ -56,11 +56,12 @@ type APIkey struct{
 	
 }
 
-// var secretKey = []byte(os.Getenv("JWT_SECRET"))
+
 
 
 // first createtoken
 func CreateToken(userid string) (string, error){
+	envs:= env.NewEnv()
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": userid,                    // Subject (user identifier)
 		"iss": "One-Go",                  // Issuer
@@ -68,7 +69,7 @@ func CreateToken(userid string) (string, error){
 		"exp": time.Now().Add(time.Hour).Unix(), // Expiration time
 		"iat": time.Now().Unix(),                 // Issued at
 	})
-	secret :=[]byte(os.Getenv("JWT_SECRET"))
+	secret :=[]byte(envs.JWT_SECRET)
 	tokenString, err := claims.SignedString(secret)
 	if err!=nil{
 		return "", err
@@ -154,11 +155,17 @@ func CreateUser() fiber.Handler {
 			MaxAge: 3600,
 		})
 
-		_ = models.APIkey{
+		api := models.APIkey{
 			Id: primitive.NewObjectID(),
-			Userid: user.Id.Hex(),
+			UserId: user.Id.Hex(),
 			Key: apikey,
 			UsageLimit: 50,
+		}
+		_, err =connect.APIKeyCollection.InsertOne(context.TODO(),api)
+		if err!=nil{
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "looks like there is a small problem while inserting api to collections",
+			})
 		}
 
 		
@@ -229,30 +236,31 @@ func Login() fiber.Handler{
 
 func GetUser() fiber.Handler{
 	return func(c *fiber.Ctx) error {
-		user := c.Locals("user")
-		claims,ok := user.(jwt.MapClaims)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
+
+		user_id,err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"userId cannot be fetched",
 			})
 		}
-		user_id, ok := claims["aud"].(string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or missing  aud field",
+		fmt.Println("userid: ", user_id)
+
+		id,err:= primitive.ObjectIDFromHex(user_id)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"id format is not valid",
 			})
 		}
-		
-		user_info,err := GetUserViaId(user_id)
+
+	
+		user_info,err := GetUserViaId(id)
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User not found"})
 		}
 		return c.JSON(user_info)
-
-		
 	}
 }
 
 
-
+// TODO: Delete user and Update user
 // getting user details by email id

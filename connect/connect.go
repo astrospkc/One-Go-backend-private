@@ -3,12 +3,11 @@ package connect
 import (
 	"context"
 	"fmt"
+	"gobackend/env"
 
 	"log"
-	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -37,13 +36,10 @@ var APIKeyCollection *mongo.Collection
 
 
 func Connect(){
-	err:=godotenv.Load(".env.prod")
-	if err!=nil{
-		log.Fatal("Error handling .env file")
-	}
+	envs := env.NewEnv()
 	var uri string 
 	// uri := "mongodb+srv://punamkumari399:RDQX28rR3RIh3V9m@cluster0.g24hw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-	if uri = os.Getenv("MONGODB_URI"); uri == "" {
+	if uri = envs.MONGODB_URI; uri == "" {
 		log.Fatal("You must set your 'MONGODB_URI' environment variable. See\n\t https://docs.mongodb.com/drivers/go/current/usage-examples/")
 	}
 

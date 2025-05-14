@@ -7,6 +7,8 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -24,15 +26,40 @@ import (
 
 // 	return email, nil
 // }
-
-func GetUserViaId(user_id string) (UserResponse, error)  {
+func FetchUserId(c *fiber.Ctx) (string , error){
+		var user_id string
+		userIdInterface:=c.Locals("user_id")
+		user_id, ok := userIdInterface.(string)
+		if !ok {
+			return "", c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid user ID format",
+			})
+		}
+		
+		
+		if user_id=="" {
+		user := c.Locals("user")
+		claims,ok := user.(jwt.MapClaims)
+		if !ok {
+			return "",c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid or missing  aud field",
+			})
+		}
+		user_id, ok = claims["aud"].(string)
+		if !ok {
+			return "",c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid or missing  aud field",
+			})
+		}
+		}
+		
+		return user_id, nil
+}
+func GetUserViaId(user_id primitive.ObjectID) (UserResponse, error)  {
 	fmt.Println("user_id: ", user_id)
-	id,err:= primitive.ObjectIDFromHex(user_id)
-	if err!=nil{
-		log.Fatal("id format invalid")
-	}
+	
 	var foundUser UserResponse
-	err = connect.UsersCollection.FindOne(context.TODO(), bson.M{"id":id}).Decode(&foundUser)
+	err := connect.UsersCollection.FindOne(context.TODO(), bson.M{"id":user_id}).Decode(&foundUser)
 	if err!=nil{
 		log.Fatal("No such id exist")
 	}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -23,18 +22,11 @@ type Collection struct{
 
 func CreateCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error {
-		user := c.Locals("user")
-		claims,ok:=user.(jwt.MapClaims)
-		if !ok{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
-			})
-		}
-		user_id, ok:=claims["aud"].(string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "user id not okay",
-			})
+		user_id, err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":"failed to fetch user_id",
+		})
 		}
 		
 		var col models.Collection
@@ -44,15 +36,10 @@ func CreateCollection() fiber.Handler{
 			})
 		}
 
-		id,err:=primitive.ObjectIDFromHex(user_id)
-		if err!=nil{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error":"Invalid request body",
-			})
-		}
+		
 		collection := models.Collection{
 			Id:primitive.NewObjectID(),
-			UserId: id,
+			UserId: user_id,
 			Title: col.Title,
 			Description: col.Description,
 		}
@@ -77,22 +64,13 @@ func CreateCollection() fiber.Handler{
 
 func GetAllCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		user := c.Locals("user")
-		claims, ok:=user.(jwt.MapClaims)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
-			})
-		}
-		user_id, ok:=claims["aud"].(string)
-	
-		id, err:= primitive.ObjectIDFromHex(user_id)
+		user_id, err:= FetchUserId(c)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "id format is not valid",
-			})
+			"error":"failed to fetch user_id",
+		})
 		}
-		cursor, err := connect.ColCollection.Find(context.TODO(), bson.M{"user_id":id})
+		cursor, err := connect.ColCollection.Find(context.TODO(), bson.M{"user_id":user_id})
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "No collection could be found",

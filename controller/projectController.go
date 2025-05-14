@@ -8,7 +8,6 @@ import (
 	"gobackend/models"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -27,23 +26,19 @@ type ProjectUpdate struct {
 
 // import "github.com/gofiber/fiber/v2"
 
+
+
 func CreateProject() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// first get the user email , for inserting to that userid
 		id:= c.Params("col_id")
-		user := c.Locals("user")
-		claims,ok := user.(jwt.MapClaims)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
+		user_id, err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"failed to fetch user id",
 			})
 		}
-		user_id, ok := claims["aud"].(string)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "user id not okay",
-			})
-		}
+		
 
 		var p models.Project
 		if err := c.BodyParser(&p); err!=nil{
@@ -52,13 +47,7 @@ func CreateProject() fiber.Handler {
 			})
 		}
 		
-	
-		u_id,err := primitive.ObjectIDFromHex(user_id)
-		if err!=nil{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "id format invalid",
-			})
-		}
+		
 		col_id ,err:= primitive.ObjectIDFromHex(id)
 		if err!=nil{
 			 return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -68,7 +57,7 @@ func CreateProject() fiber.Handler {
 		fmt.Printf("%T\n", col_id)
 		project := models.Project{
 			Id:primitive.NewObjectID(),
-			UserId:u_id,
+			UserId:user_id,
 			CollectionId:col_id,
 			Title: p.Title,
 			Description: p.Description,
@@ -92,22 +81,15 @@ func CreateProject() fiber.Handler {
 
 func GetAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		user := c.Locals("user")
-		claims, ok:=user.(jwt.MapClaims)
-		if !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid JWT claims format",
-			})
-		}
-		user_id, ok:=claims["aud"].(string)
-	
-		id, err:= primitive.ObjectIDFromHex(user_id)
+		user_id, err:=FetchUserId(c)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "id format is not valid",
+				"error": "error fetching userId",
 			})
 		}
-		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":id})
+	
+	
+		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":user_id})
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "No collection could be found",

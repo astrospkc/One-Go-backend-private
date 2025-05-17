@@ -7,7 +7,7 @@ import (
 )
 
 type ENV struct{
-	MONGODB_URI                 string `mapstructure:"MONGODB_URI "`
+	MONGODB_URI                 string `mapstructure:"MONGODB_URI"`
 	JWT_SECRET					string `mapstructure:"JWT_SECRET"`
 	S3_BUCKET_NAME				string `mapstructure:"S3_BUCKET_NAME"`
 	AWS_SECRET_ACCESS_KEY		string `mapstructure:"AWS_SECRET_ACCESS_KEY"` 
@@ -27,7 +27,7 @@ func NewEnv() *ENV {
 	if err != nil {
 	 log.Fatal("Environment can't be loaded: ", err)
 	}
-	log.Fatal("all env good")
+	// fmt.Println(env)
    
 	return &env
    }

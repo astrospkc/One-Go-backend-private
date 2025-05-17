@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"gobackend/connect"
 	"gobackend/models"
 	"time"
@@ -22,7 +23,9 @@ type Collection struct{
 
 func CreateCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error {
+		fmt.Println("createing collection : ")
 		user_id, err:= FetchUserId(c)
+		fmt.Println("crate colle: ", user_id)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":"failed to fetch user_id",
@@ -64,7 +67,10 @@ func CreateCollection() fiber.Handler{
 
 func GetAllCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error{
+
 		user_id, err:= FetchUserId(c)
+		
+
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":"failed to fetch user_id",

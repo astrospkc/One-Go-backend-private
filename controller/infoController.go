@@ -27,33 +27,37 @@ import (
 // 	return email, nil
 // }
 func FetchUserId(c *fiber.Ctx) (string , error){
+	
 		var user_id string
 		userIdInterface:=c.Locals("user_id")
+		// fmt.Println("user interfacce: ", userIdInterface)
 		user_id, ok := userIdInterface.(string)
 		if !ok {
-			return "", c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid user ID format",
-			})
-		}
+			if user_id=="" {
+				user := c.Locals("user")
+				claims,ok := user.(jwt.MapClaims)
+				if !ok {
+					return "",c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "Invalid or missing  aud field",
+					})
+				}
+				user_id, ok = claims["aud"].(string)
+				if !ok {
+					return "",c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "Invalid or missing  aud field",
+					})
+				}
+				}
 		
-		
-		if user_id=="" {
-		user := c.Locals("user")
-		claims,ok := user.(jwt.MapClaims)
-		if !ok {
-			return "",c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or missing  aud field",
-			})
+				fmt.Println("user_id in fn", user_id)
+				
+				return user_id, nil
 		}
-		user_id, ok = claims["aud"].(string)
-		if !ok {
-			return "",c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or missing  aud field",
-			})
-		}
-		}
-		
 		return user_id, nil
+		
+		
+		
+		
 }
 func GetUserViaId(user_id primitive.ObjectID) (UserResponse, error)  {
 	fmt.Println("user_id: ", user_id)

@@ -11,15 +11,6 @@ jobs:
    steps:
     - name: Checkout the code 
       uses: actions/checkout@v2
-
-    - name: executing remote ssh commands using ssh key
-      uses: appleboy/ssh-action@v1.2.0
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.KEY }}
-        port: ${{ secrets.PORT }}
-        script: whoami
     - name: Print short part of SSH key (for debug only)
       run: echo "${{ secrets.KEY }}" | head -n 2
     

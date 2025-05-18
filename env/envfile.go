@@ -2,7 +2,6 @@ package env
 
 import (
 	"log"
-
 	"github.com/spf13/viper"
 )
 
@@ -27,7 +26,7 @@ func NewEnv() *ENV {
 	if err != nil {
 	 log.Fatal("Environment can't be loaded: ", err)
 	}
+
 	// fmt.Println(env)
-   
 	return &env
    }

@@ -27,10 +27,7 @@ func NewEnv() *ENV {
 	if err != nil {
 	 log.Fatal("Environment can't be loaded: ", err)
 	}
-<<<<<<< HEAD
-=======
+
 	// fmt.Println(env)
->>>>>>> 778119e743aa12f39c6e30e01059e9b69b5fb929
-   
 	return &env
    }

@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.2
 	github.com/gofiber/fiber/v2 v2.52.6
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/joho/godotenv v1.5.1
+	github.com/spf13/viper v1.20.1
 	go.mongodb.org/mongo-driver v1.17.3
 	go.mongodb.org/mongo-driver/v2 v2.1.0
 	golang.org/x/crypto v0.37.0
@@ -48,7 +48,6 @@ require (
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
-	github.com/spf13/viper v1.20.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.60.0 // indirect

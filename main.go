@@ -13,8 +13,13 @@ func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:"http://localhost:3000, https://one-go-private.vercel.app",
+		AllowOrigins: "https://one-go-private.vercel.app", // you can also just allow this for production
 		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders: "*",
+		AllowCredentials: true,
+		AllowOriginsFunc: func(origin string) bool {
+		return origin == "http://localhost:3000" || origin == "https://one-go-private.vercel.app"
+	},
 	}))
 
 	connect.Connect()

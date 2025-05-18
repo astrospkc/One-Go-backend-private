@@ -1,23 +1,31 @@
-name: Deploy to EC2 via SSH
+name: Deploy Go App to EC2
 
 on:
   push:
     branches:
       - main
+
 jobs:
-  build:
-   name: Build
-   runs-on: ubuntu-latest
-   steps:
-    - name: Checkout the code 
-      uses: actions/checkout@v2
-    - name: executing remote ssh commands using ssh key
-      uses: appleboy/ssh-action@v1.2.0
-      with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.KEY }}
-        port: ${{ secrets.PORT }}
-        script: whoami
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          script: |
+            echo "Connected to EC2 as $(whoami)"
+            cd /home/ubuntu/One-Go-backend-private
+            git pull origin main
+            go build -o app
+            sudo systemctl restart onego
+
   
     

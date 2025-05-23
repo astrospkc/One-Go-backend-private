@@ -13,7 +13,7 @@ func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://one-go-private.vercel.app, http://localhost:3000", // you can also just allow this for production
+		AllowOrigins: "http://localhost:3000,https://one-go-private.vercel.app", // you can also just allow this for production
 		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
 		AllowHeaders: "*",
 		AllowCredentials: true,
@@ -25,8 +25,6 @@ func main() {
 
 	routes.RegisterNormalRoutes(app)
 	routes.RegisterAPIKeyRoutes(app)
-
-	
 
 	app.Listen(":8000")
 }

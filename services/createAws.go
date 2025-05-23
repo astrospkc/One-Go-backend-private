@@ -59,7 +59,7 @@ func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data
 	clientHttp:= &http.Client{}
 	resp,err:=clientHttp.Do(httpreq)
 	if err!=nil{
-		return "",err
+		return "",err 
 	}
 	defer resp.Body.Close()
 

@@ -19,14 +19,18 @@ import (
 // 	}
 // }
 
+
 func GetPresignedGetUrl(bucketName, fileKey string) (string, error) {
+	fmt.Println("bucket name and filekey: ", bucketName, fileKey)
 	envs:= env.NewEnv()
+
+	accessKey := envs.AWS_ACCESS_KEY_ID
+	secretKey :=envs.AWS_SECRET_ACCESS_KEY
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion("us-east-1"),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				envs.AWS_ACCESS_KEY_ID,
-				envs.AWS_SECRET_ACCESS_KEY,
+				accessKey, secretKey,
 				"",
 			),
 		),

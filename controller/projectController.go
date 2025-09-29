@@ -1,11 +1,18 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"gobackend/connect"
+	"gobackend/env"
 	"gobackend/models"
+	"gobackend/services"
 
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,9 +25,13 @@ type ProjectUpdate struct {
     Title        *string `json:"title,omitempty" bson:"title,omitempty"`
     Description  *string `json:"description,omitempty" bson:"description,omitempty"`
     Tags         *string `json:"tags,omitempty" bson:"tags,omitempty"`
+	FileUpload   string `bson:"fileUpload,omitempty" json:"fileUpload"`
     Thumbnail    *string `json:"thumbnail,omitempty" bson:"thumbnail,omitempty"`
     GithubLink   *string `json:"githublink,omitempty" bson:"githublink,omitempty"`
+	DemoLink      string `json:"demolink,omitempty" bson:"demolink,omitempty"`
     LiveDemoLink *string `json:"livedemolink,omitempty" bson:"livedemolink,omitempty"`
+	BlogLink     string `bson:"blogLink,omitempty" json:"blogLink"`
+	TeamMembers  string `bson:"teamMembers,omitempty" json:"teamMembers"`
     // (no CreatedAt here)
 }
 
@@ -31,6 +42,7 @@ type ProjectUpdate struct {
 func CreateProject() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// first get the user email , for inserting to that userid
+		envs:= env.NewEnv()
 		id:= c.Params("col_id")
 		user_id, err:= FetchUserId(c)
 		if err!=nil{
@@ -39,7 +51,6 @@ func CreateProject() fiber.Handler {
 			})
 		}
 		
-
 		var p models.Project
 		if err := c.BodyParser(&p); err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -47,26 +58,62 @@ func CreateProject() fiber.Handler {
 			})
 		}
 		
-		
 		col_id ,err:= primitive.ObjectIDFromHex(id)
 		if err!=nil{
 			 return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "error": "Invalid ID format",
         })
 		}
-		fmt.Printf("%T\n", col_id)
+
+		var objectKey string
+		picHeader, err := c.FormFile("file")
+		if err == nil && picHeader != nil {
+			file, err := picHeader.Open()
+			if err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Failed to open uploaded file",
+				})
+			}
+			defer file.Close()
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, file)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to buffer uploaded file",
+				})
+			}
+
+			filename := picHeader.Filename
+			ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
+			mimeType := picHeader.Header.Get("Content-Type")
+			fmt.Println("mimetype: ",mimeType)
+			parts := strings.SplitN(mimeType, "/", 2)
+			fmt.Println("parts: ", parts)
+			objectKey = fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
+			_, err = services.CreatePresignedUrlAndUploadObject(envs.S3_BUCKET_NAME, objectKey, buf.Bytes(), mimeType)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to upload profile picture",
+				})
+			}
+		}
+
 		project := models.Project{
 			Id:primitive.NewObjectID(),
 			UserId:user_id,
 			CollectionId:col_id,
 			Title: p.Title,
 			Description: p.Description,
-			Tags:p.Tags,
+			Tags:p.Tags, // write tech staack here
+			FileUpload: objectKey,
 			Thumbnail: p.Tags,
 			GithubLink: p.GithubLink,
+			DemoLink:p.DemoLink,
 			LiveDemoLink: p.LiveDemoLink,
+			BlogLink:p.BlogLink,
+			TeamMembers: p.TeamMembers,
 		}
-
 		_,err = connect.ProjectCollection.InsertOne(context.TODO(), project)
 		if err!=nil{
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -183,20 +230,6 @@ func UpdateProject() fiber.Handler {
 				"error":"Failed to convert in primitive type",
 			})
 		}
-
-
-		// fmt.Println("object Id: ", objId)
-		// // lets find first to check it is actually working or not
-		// var foundProj models.Project
-		// err = connect.ProjectCollection.FindOne(context.TODO(),bson.M{"id":objId}).Decode(&foundProj)
-		// if err!=nil{
-		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		// 		"error":"Could not find the project",
-		// 	})
-		// }
-		// fmt.Println("foundProj: ", foundProj)
-
-
 		fmt.Printf("pid: %T \n", objId)
 		filter:=bson.M{"id":objId}
 		update:=bson.M{"$set":setDoc}

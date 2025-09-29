@@ -1,12 +1,17 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"gobackend/connect"
 	"gobackend/env"
 	"gobackend/models"
+	"gobackend/services"
+	"io"
 	"log"
+	"path/filepath"
+	"strings"
 
 	"time"
 
@@ -14,17 +19,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // TODO: later on add Project , category , links, blog, media, resume, subscription, usersubscription, apikey , all of these in UserResponse
 type UserResponse struct {
 	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
-	Name 		string `bson:"name" json:"name"`
-	Email 		string `bson:"email" json:"email"`
+	Name 		string `bson:"name,omitempty" json:"name"`
+	Email 		string `bson:"email,omitempty" json:"email"`
 	ProfilePic  string `bson:"profile_pic,omitempty" json:"profile_pic"`
-	Role 		string	`bson:"role" json:"role"`
-	APIkey		string  `bson:"api_key" json:"api_key"`
+	Role 		string	`bson:"role,omitempty" json:"role"`
+	APIkey		string  `bson:"api_key,omitempty" json:"api_key"`
 	
 }
 
@@ -83,100 +89,146 @@ func CreateToken(userid string) (string, error){
 
 func CreateUser() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		envs := env.NewEnv()
 
-		apikey,err:= GenerateApiKey()
-		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"Failed to generate key",
-			})
-		}
-
-    	var d models.User
-    	if err := c.BodyParser(&d); err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"Invalid request body",
-			})
-		}
-
-		
-		if d.Email == "" || d.Password == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Email and Password are required",
-			})
-		}
-
-
-		// hashing the password
-		password:=[]byte(d.Password)
-		hashedPass, err := bcrypt.GenerateFromPassword(password,bcrypt.DefaultCost)
-		if err!=nil{
+		// Generate API Key
+		apiKey, err := GenerateApiKey()
+		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Could not hash password",
+				"error": "Failed to generate API key",
 			})
 		}
-		fmt.Println(string(hashedPass))
 
+		// Read form values
+		name := c.FormValue("name")
+		email := c.FormValue("email")
+		password := c.FormValue("password")
+		role := c.FormValue("role")
 
-		if d.ProfilePic == "" {
-			d.ProfilePic = "https://cdn.example.com/default-avatar.png"
+		if email == "" || password == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Email and password are required",
+			})
 		}
-		hash:= string(hashedPass)
-		
+
+		// Check if user already exists
+		var existingUser models.User
+		err = connect.UsersCollection.FindOne(context.TODO(), bson.M{"email": email}).Decode(&existingUser)
+		if err == nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Email is already in use",
+			})
+		}
+
+		// Handle optional profile picture
+		var objectKey string
+		picHeader, err := c.FormFile("file")
+		if err == nil && picHeader != nil {
+			file, err := picHeader.Open()
+			if err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Failed to open uploaded file",
+				})
+			}
+			defer file.Close()
+
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, file)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to buffer uploaded file",
+				})
+			}
+
+			filename := picHeader.Filename
+			ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
+			mimeType := picHeader.Header.Get("Content-Type")
+			objectKey = fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
+
+			_, err = services.CreatePresignedUrlAndUploadObject(envs.S3_BUCKET_NAME, objectKey, buf.Bytes(), mimeType)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to upload profile picture",
+				})
+			}
+		}
+
+		// Hash password
+		hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to hash password",
+			})
+		}
+
+		// Create user document
 		user := models.User{
-			Id:primitive.NewObjectID(),
-			Name:d.Name,
-			Email:d.Email,
-			ProfilePic: d.ProfilePic,
-			Password:hash ,
-			Role:d.Role,
-			APIkey: apikey,
+			Id:         primitive.NewObjectID(),
+			Name:       name,
+			Email:      email,
+			Password:   string(hashedPass),
+			ProfilePic: objectKey,
+			Role:       role,
+			APIkey:     apiKey,
 		}
-		fmt.Println("user: ", user)
-		_,err = connect.UsersCollection.InsertOne(context.Background(), user)
-		if err!=nil{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "looks like email address is already in use",
+
+		// Save user
+		_, err = connect.UsersCollection.InsertOne(context.TODO(), user)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create user",
 			})
-			
 		}
-		
-		
-		tokenString,err := CreateToken(user.Id.Hex())
-		if err!=nil{
-			log.Println("failed to create token")
+
+		// Generate token
+		tokenString, err := CreateToken(user.Id.Hex())
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create token",
+			})
 		}
-		
-    	c.Cookie(&fiber.Cookie{
-			Name: "token",
-			Value:tokenString,
+
+		// Set secure cookie
+		c.Cookie(&fiber.Cookie{
+			Name:     "token",
+			Value:    tokenString,
 			HTTPOnly: true,
-			Secure: true,
-			Path:"/",
-			MaxAge: 3600,
+			Secure:   true,
+			Path:     "/",
+			MaxAge:   3600,
 		})
 
+		// Save API key doc
 		api := models.APIkey{
-			Id: primitive.NewObjectID(),
-			UserId: user.Id.Hex(),
-			Key: apikey,
+			Id:         primitive.NewObjectID(),
+			UserId:     user.Id.Hex(),
+			Key:        apiKey,
 			UsageLimit: 50,
 		}
-		_, err =connect.APIKeyCollection.InsertOne(context.TODO(),api)
-		if err!=nil{
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "looks like there is a small problem while inserting api to collections",
+		_, err = connect.APIKeyCollection.InsertOne(context.TODO(), api)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to save API key",
 			})
 		}
-
-		
-		
+		userRes := models.User{
+			Id:         primitive.NewObjectID(),
+			Name:       name,
+			Email:      email,
+			ProfilePic: objectKey,
+			Role:       role,
+			APIkey:     apiKey,
+		}
+		// Final response
 		resp := &Response{
-			Token:tokenString,
-			User:user,
+			Token: tokenString,
+			User:  userRes,
 		}
 		return c.JSON(resp)
 	}
 }
+
+
 
 
 func Login() fiber.Handler{
@@ -258,6 +310,97 @@ func GetUser() fiber.Handler{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User not found"})
 		}
 		return c.JSON(user_info)
+	}
+}
+
+func DeleteUser() fiber.Handler{
+	return func(c *fiber.Ctx) error{
+		user_id, err := FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"userId cannot be fetched",
+			})
+		}
+
+		id,err:= primitive.ObjectIDFromHex(user_id)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"id format is not valid",
+			})
+		}
+		result, err:= connect.UsersCollection.DeleteOne(context.TODO(), bson.M{"id":id})
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"no user could be deleted",
+			})
+		}
+		return c.JSON(result)
+	}
+}
+
+func setUser(upd *UserResponse) (bson.M, error){
+	data, err := bson.Marshal(upd)
+	if err!=nil{
+		return nil, err
+	}
+	var m bson.M
+	if err:= bson.Unmarshal(data, &m); err!=nil{
+		return nil, err
+	}
+	return m, nil
+}
+
+func UpdateUser() fiber.Handler{
+	return func(c *fiber.Ctx) error{ 
+		user_id, err := FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"userId cannot be fetched",
+			})
+		}
+
+		id,err:= primitive.ObjectIDFromHex(user_id)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"id format is not valid",
+			})
+		}
+		var userput UserResponse
+		if err = c.BodyParser(&userput) ; err!= nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"invalid JSON",
+			})
+		}
+
+		setUser, err := setUser(&userput)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":"Failed to prepare update",
+			})
+		}
+		if len(setUser)==0{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"No fields provided to update",
+			})
+		}
+
+		filter:= bson.M{
+			"id":id,
+		}
+		update:=bson.M{
+			"$set":setUser,
+		}
+		
+		opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+		var updatedUser models.User
+
+		err = connect.UsersCollection.FindOneAndUpdate(context.TODO(), filter, update, opts).Decode(&updatedUser)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"no user could be updae",
+			})
+		}
+		return c.JSON(updatedUser)
 	}
 }
 

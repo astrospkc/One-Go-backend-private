@@ -26,5 +26,5 @@ func main() {
 	routes.RegisterNormalRoutes(app)
 	routes.RegisterAPIKeyRoutes(app)
 
-	app.Listen(":8000")
+	app.Listen(":8080")
 }

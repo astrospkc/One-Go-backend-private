@@ -37,6 +37,8 @@ func PostMedia() fiber.Handler{
 		// get the url , get the body
 		envs:= env.NewEnv()
 		col_id := c.Params("col_id")
+		fmt.Print("heelo I am posting files")
+		fmt.Println( "col id:",col_id)
 		id,err := primitive.ObjectIDFromHex(col_id)
 		if err!=nil{
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

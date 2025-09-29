@@ -8,6 +8,7 @@ import (
 
 type User struct {
 	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	Google_id   string  `bson:"google_id" json:"google_id"`
 	Name 		string `bson:"name" json:"name"`
 	Email 		string `bson:"email" json:"email"`
 	ProfilePic  string `bson:"profile_pic,omitempty" json:"profile_pic"`
@@ -32,9 +33,13 @@ type Project struct{
 	Title		 string	`bson:"title" json:"title"`
 	Description	 string	`bson:"description,omitempty" json:"description"`
 	Tags		 string	`bson:"tags,omitempty" json:"tags"`
+	FileUpload   string `bson:"fileUpload,omitempty" json:"fileUpload"`
 	Thumbnail 	 string	`bson:"thumbnail,omitempty" json:"thumbnail"`
 	GithubLink	 string	`bson:"githublink,omitempty" json:"githublink"`
-	LiveDemoLink string	`bson:"livedemolink,omitempty" json:"liveddemolink"`
+	DemoLink     string `bson:"demolink,omitempty" json:"demolink"`
+	LiveDemoLink string	`bson:"livedemolink,omitempty" json:"livedemolink"`
+	BlogLink     string `bson:"blogLink,omitempty" json:"blogLink"`
+	TeamMembers  string `bson:"teamMembers,omitempty" json:"teamMembers"`
 	CreatedAt	time.Time	`bson:"time" json:"time"`
 }
 

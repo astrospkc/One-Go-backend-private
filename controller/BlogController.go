@@ -32,13 +32,6 @@ func CreateBlog() fiber.Handler{
 		// getting collection_id
 		
 		col_id:=c.Params("col_id")
-		id,err:=primitive.ObjectIDFromHex(col_id)
-		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"id format not valid",
-			})
-		}
-
 		user_id, err:= FetchUserId(c)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -46,7 +39,6 @@ func CreateBlog() fiber.Handler{
 		})
 		}
 	
-
 		var p models.Blog
 		if err := c.BodyParser(&p); err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -55,9 +47,9 @@ func CreateBlog() fiber.Handler{
 		}
 		
 		blog := models.Blog{
-			Id:primitive.NewObjectID(),
+			Id:primitive.NewObjectID().Hex(),
 			UserId:user_id,
-			CollectionId: id,
+			CollectionId: col_id,
 			Title: p.Title,
 			Content: p.Content,
 			Description: p.Description,
@@ -116,12 +108,9 @@ func ReadBlogWithCollectionId() fiber.Handler{
 				"error":"Please provide project id",
 			})
 		}
-		col_id, err := primitive.ObjectIDFromHex(c_id)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid collection ID format",})
-		}
+		
 
-		cursor, err := connect.BlogsCollection.Find(context.TODO(), bson.M{"collection_id":col_id})
+		cursor, err := connect.BlogsCollection.Find(context.TODO(), bson.M{"collection_id":c_id})
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"No Blogs could be found",
@@ -251,14 +240,9 @@ func DeleteBlog() fiber.Handler{
 func DeleteAllBlog() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		col_id:= c.Params("col_id")
-		id, err := primitive.ObjectIDFromHex(col_id)
-		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"id format is not valid",
-			})
-		}
+		
 
-		filter := bson.M{"collection_id":id}
+		filter := bson.M{"collection_id":col_id}
 		result, err:= connect.BlogsCollection.DeleteMany(context.TODO(), filter)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

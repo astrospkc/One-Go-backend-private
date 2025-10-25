@@ -15,6 +15,7 @@ func RegisterNormalRoutes(app *fiber.App){
 	auth:= app.Group("/auth")
 	auth.Post("/createUser", controller.CreateUser())
 	auth.Post("/login", controller.Login())
+	auth.Post("/logout", controller.Logout())
 	auth.Get("/getUser",middleware.FetchUser(), controller.GetUser())
 	auth.Put("/editUser", middleware.FetchUser(), controller.UpdateUser())
 

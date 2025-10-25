@@ -32,7 +32,14 @@ type ProjectUpdate struct {
     LiveDemoLink *string `json:"livedemolink,omitempty" bson:"livedemolink,omitempty"`
 	BlogLink     string `bson:"blogLink,omitempty" json:"blogLink"`
 	TeamMembers  string `bson:"teamMembers,omitempty" json:"teamMembers"`
+	UpdatedAt    time.Time `bson:"updated_time" json:"updated_time"`
     // (no CreatedAt here)
+}
+
+func UpdatedProject() *ProjectUpdate{
+	return &ProjectUpdate{
+		UpdatedAt: time.Now(),
+	}
 }
 
 // import "github.com/gofiber/fiber/v2"
@@ -43,7 +50,7 @@ func CreateProject() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// first get the user email , for inserting to that userid
 		envs:= env.NewEnv()
-		id:= c.Params("col_id")
+		col_id:= c.Params("col_id")
 		user_id, err:= FetchUserId(c)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -58,12 +65,7 @@ func CreateProject() fiber.Handler {
 			})
 		}
 		
-		col_id ,err:= primitive.ObjectIDFromHex(id)
-		if err!=nil{
-			 return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "Invalid ID format",
-        })
-		}
+		
 
 		var objectKey string
 		picHeader, err := c.FormFile("file")
@@ -100,7 +102,7 @@ func CreateProject() fiber.Handler {
 		}
 
 		project := models.Project{
-			Id:primitive.NewObjectID(),
+			Id:primitive.NewObjectID().Hex(),
 			UserId:user_id,
 			CollectionId:col_id,
 			Title: p.Title,
@@ -113,6 +115,7 @@ func CreateProject() fiber.Handler {
 			LiveDemoLink: p.LiveDemoLink,
 			BlogLink:p.BlogLink,
 			TeamMembers: p.TeamMembers,
+			CreatedAt: time.Now(),
 		}
 		_,err = connect.ProjectCollection.InsertOne(context.TODO(), project)
 		if err!=nil{
@@ -126,14 +129,19 @@ func CreateProject() fiber.Handler {
 	}
 }
 
+// get the col_id , check the project with this col_id exists?
 func GetAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
+		// envs:=env.NewEnv()
+		
 		user_id, err:=FetchUserId(c)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "error fetching userId",
 			})
 		}
+
+		fmt.Print("user id: ", user_id)
 	
 	
 		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":user_id})
@@ -142,30 +150,21 @@ func GetAllProject() fiber.Handler{
 				"error": "No collection could be found",
 			})
 		}
-		var collections []models.Collection
-		if err := cursor.All(context.TODO(), &collections); err!=nil{
+		var projects []models.Project
+		if err := cursor.All(context.TODO(), &projects); err!=nil{
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to parse project data",
 			})
 		}
-		return c.JSON(collections)
+		return c.JSON(projects)
 
 	}
 }
 func ReadProject() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		col_id := c.Params("col_id")
-		
-		id ,err:= primitive.ObjectIDFromHex(col_id)
-		if err!=nil{
-			 return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "error": "Invalid ID format",
-        })
-		}
-		
-		
 		// var project_info models.Project
-		cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"collection_id":id})
+		cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"collection_id":col_id})
 
 		// cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"email":email})
 		if err!=nil{
@@ -207,7 +206,7 @@ func UpdateProject() fiber.Handler {
 			})
 		}
 		
-		var upd ProjectUpdate
+		upd:= UpdatedProject()
 		if err := c.BodyParser(&upd); err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"Invalid JSON",
@@ -215,7 +214,7 @@ func UpdateProject() fiber.Handler {
 		}
 
 		// build the $set doc
-		setDoc, err:=  setDoc(&upd)
+		setDoc, err:=  setDoc(upd)
 		 if err != nil {
             return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to prepare update"})
         }

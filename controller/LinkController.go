@@ -40,7 +40,7 @@ func CreateLink() fiber.Handler{
 
 		
 		link := models.Link{
-			Id:primitive.NewObjectID(),
+			Id:primitive.NewObjectID().Hex(),
 			UserId:user_id,
 			Source:p.Source,
 			Title:p.Title,

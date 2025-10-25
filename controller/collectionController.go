@@ -41,7 +41,7 @@ func CreateCollection() fiber.Handler{
 
 		
 		collection := models.Collection{
-			Id:primitive.NewObjectID(),
+			Id:primitive.NewObjectID().Hex(),
 			UserId: user_id,
 			Title: col.Title,
 			Description: col.Description,
@@ -69,8 +69,6 @@ func GetAllCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 
 		user_id, err:= FetchUserId(c)
-		
-
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":"failed to fetch user_id",

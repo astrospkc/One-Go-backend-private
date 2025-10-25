@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"gobackend/connect"
 	"gobackend/env"
@@ -19,13 +20,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // TODO: later on add Project , category , links, blog, media, resume, subscription, usersubscription, apikey , all of these in UserResponse
 type UserResponse struct {
-	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	Id 			string	`bson:"id,omitempty" json:"id"`
 	Name 		string `bson:"name,omitempty" json:"name"`
 	Email 		string `bson:"email,omitempty" json:"email"`
 	ProfilePic  string `bson:"profile_pic,omitempty" json:"profile_pic"`
@@ -163,7 +165,7 @@ func CreateUser() fiber.Handler {
 
 		// Create user document
 		user := models.User{
-			Id:         primitive.NewObjectID(),
+			Id:         primitive.NewObjectID().Hex(),
 			Name:       name,
 			Email:      email,
 			Password:   string(hashedPass),
@@ -173,15 +175,15 @@ func CreateUser() fiber.Handler {
 		}
 
 		// Save user
-		_, err = connect.UsersCollection.InsertOne(context.TODO(), user)
+		_, err= connect.UsersCollection.InsertOne(context.TODO(), user)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to create user",
 			})
 		}
-
-		// Generate token
-		tokenString, err := CreateToken(user.Id.Hex())
+		
+		
+		tokenString, err := CreateToken(user.Id)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to create token",
@@ -200,8 +202,8 @@ func CreateUser() fiber.Handler {
 
 		// Save API key doc
 		api := models.APIkey{
-			Id:         primitive.NewObjectID(),
-			UserId:     user.Id.Hex(),
+			Id:         primitive.NewObjectID().Hex(),
+			UserId:    	user.Id,
 			Key:        apiKey,
 			UsageLimit: 50,
 		}
@@ -212,7 +214,7 @@ func CreateUser() fiber.Handler {
 			})
 		}
 		userRes := models.User{
-			Id:         primitive.NewObjectID(),
+			Id:         user.Id,
 			Name:       name,
 			Email:      email,
 			ProfilePic: objectKey,
@@ -234,7 +236,11 @@ func CreateUser() fiber.Handler {
 func Login() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		
-		var d models.User
+		var d struct{
+			Email string `bson:"email" json:"email"`
+			Password string `bson:"password" json:"password"`
+		}
+
 		if err := c.BodyParser(&d); err !=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"Invalid request body",
@@ -264,7 +270,7 @@ func Login() fiber.Handler{
 				"error":"Password is incorrect, please try once more",
 			})
 		}
-		tokenString, err := CreateToken(user.Id.Hex())
+		tokenString, err := CreateToken(user.Id)
 		if err!=nil{
 			log.Println("failed to create token")
 		}
@@ -285,6 +291,24 @@ func Login() fiber.Handler{
 	}
 }
 
+func Logout() fiber.Handler{
+	return func(c *fiber.Ctx) error{
+		c.Cookie(&fiber.Cookie{
+			Name:     "token",
+			Value:    "",
+			Expires:  time.Now().Add(-time.Hour), // expire immediately
+			HTTPOnly: true,
+			Secure:   true,
+			SameSite: "None",
+		})
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "Logged out successfully",
+		})
+	}
+}
+
+
+
 
 func GetUser() fiber.Handler{
 	return func(c *fiber.Ctx) error {
@@ -296,20 +320,15 @@ func GetUser() fiber.Handler{
 			})
 		}
 		fmt.Println("userid: ", user_id)
-
-		id,err:= primitive.ObjectIDFromHex(user_id)
-		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"id format is not valid",
-			})
-		}
-
-	
-		user_info,err := GetUserViaId(id)
+		var user models.User
+		err = connect.UsersCollection.FindOne(context.TODO(), bson.M{"id":user_id}).Decode(&user)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "User not found"})
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
-		return c.JSON(user_info)
+		return c.JSON(user)
 	}
 }
 

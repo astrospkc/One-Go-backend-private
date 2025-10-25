@@ -3,7 +3,6 @@ package middleware
 import (
 	"fmt"
 	"gobackend/env"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -13,13 +12,20 @@ import (
 func FetchUser() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		envs := env.NewEnv()
-		authHeader := c.Get("Authorization")
-		if authHeader==""||!strings.HasPrefix(authHeader, "Bearer "){
+		// authHeader := c.Get("Authorization")
+		// if authHeader==""||!strings.HasPrefix(authHeader, "Bearer "){
+		// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		// 		"error": "Authentication token missing or malformed",
+		// 	})
+		// }
+		// fmt.Print("token in auth: ", authHeader)
+		// tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		tokenString := c.Cookies("token")
+		if tokenString == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Authentication token missing or malformed",
+				"error": "Missing auth token in cookies",
 			})
 		}
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		// fmt.Println("the tokenstring in middleware: ", tokenString)
 		secret := envs.JWT_SECRET
 		// fmt.Println("the secret: ", secret)

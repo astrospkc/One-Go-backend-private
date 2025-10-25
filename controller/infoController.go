@@ -9,7 +9,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -59,8 +58,9 @@ func FetchUserId(c *fiber.Ctx) (string , error){
 		
 		
 }
-func GetUserViaId(user_id primitive.ObjectID) (UserResponse, error)  {
+func GetUserViaId(user_id string) (UserResponse, error)  {
 	fmt.Println("user_id: ", user_id)
+	
 	
 	var foundUser UserResponse
 	err := connect.UsersCollection.FindOne(context.TODO(), bson.M{"id":user_id}).Decode(&foundUser)

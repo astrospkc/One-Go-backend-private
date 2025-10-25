@@ -7,7 +7,7 @@ import (
 )
 
 type User struct {
-	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	Id 			string	`bson:"id,omitempty" json:"id"`
 	Google_id   string  `bson:"google_id" json:"google_id"`
 	Name 		string `bson:"name" json:"name"`
 	Email 		string `bson:"email" json:"email"`
@@ -19,7 +19,7 @@ type User struct {
 }
 
 type Collection struct{
-	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	Id      string `bson:"id,omitempty" json:"id"`
 	UserId	string 	`bson:"user_id" json:"user_id"`
 	Title 		string `bson:"title" json:"title"`
 	Description	string `bson:"description" json:"description"`
@@ -27,9 +27,9 @@ type Collection struct{
 }
 
 type Project struct{
-	Id           primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	Id           string `bson:"id,omitempty" json:"id"`
 	UserId		 string	`bson:"user_id" json:"user_id"`
-	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
+	CollectionId string	`bson:"collection_id" json:"collection_id"`
 	Title		 string	`bson:"title" json:"title"`
 	Description	 string	`bson:"description,omitempty" json:"description"`
 	Tags		 string	`bson:"tags,omitempty" json:"tags"`
@@ -41,6 +41,7 @@ type Project struct{
 	BlogLink     string `bson:"blogLink,omitempty" json:"blogLink"`
 	TeamMembers  string `bson:"teamMembers,omitempty" json:"teamMembers"`
 	CreatedAt	time.Time	`bson:"time" json:"time"`
+	UpdatedAt   time.Time  `bson:"updated_time" json:"updated_time"`
 }
 
 type Category struct {
@@ -52,9 +53,9 @@ type Category struct {
 }
 
 type Blog struct{
-	Id           primitive.ObjectID `bson:"id,omitempty" json:"id"`
+	Id           string `bson:"id,omitempty" json:"id"`
 	UserId		 string 	`bson:"user_id" json:"user_id"`
-	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
+	CollectionId string		`bson:"collection_id" json:"collection_id"`
 	Title		string	`bson:"title" json:"title"`
 	Description	string  `bson:"description" json:"description"`
 	Content		map[string]interface{}	`bson:"content" json:"content"`
@@ -67,9 +68,9 @@ type Blog struct{
 }
 
 type Media struct{
-	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
+	Id 			string	`bson:"id,omitempty" json:"id"`
 	UserId		 string 	`bson:"user_id" json:"user_id"`
-	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
+	CollectionId string		`bson:"collection_id" json:"collection_id"`
 	Key         string 			`bson:"key" json:"key"`
 	// File        multipart.File 	`bson:"file" json:"file"`
 	Title 		string	`bson:"title" json:"title"`
@@ -78,9 +79,9 @@ type Media struct{
 }
 // type (image, video, audio, doc, pdf, etc.)
 type Link struct{
-	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
+	Id 			string	`bson:"id,omitempty" json:"id"`
 	UserId		 string 	`bson:"user_id" json:"user_id"`
-	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
+	CollectionId string		`bson:"collection_id" json:"collection_id"`
 	Source		string	`bson:"source,omitempty" json:"source"`
 	Title		string	`bson:"title,omitempty" json:"title"`
 	Url			string	`bson:"url" json:"url"` 
@@ -90,9 +91,9 @@ type Link struct{
 // category (e.g., Social, Project, Resume)
 
 type Resume struct {
-	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
+	Id 			string	`bson:"id,omitempty" json:"id"`
 	UserId 		string	`bson:"user_id" json:"user_id"`
-	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
+	CollectionId string		`bson:"collection_id" json:"collection_id"`
 	FileUrl		string	`bson:"fileurl" json:"fileurl"`
 	UploadData	time.Time	`bson:"uploadData" json:"uploadData"`
 }
@@ -116,9 +117,9 @@ type UserSubscription struct {
 
 // status- active or expired
 type APIkey struct{
-	Id 			primitive.ObjectID	`bson:"id,omitempty" json:"id"`
+	Id 			string	`bson:"id,omitempty" json:"id"`
 	UserId		string	`bson:"user_id" json:"user_id"`
-	CollectionId primitive.ObjectID		`bson:"collection_id" json:"collection_id"`
+	CollectionId string		`bson:"collection_id" json:"collection_id"`
 	Key 		string	`bson:"key" json:"key"`
 	UsageLimit	int64	`bson:"usagelimit" json:"usagelimit"`
 	CreatedAt	time.Time	`bson:"createdat" json:"createdat"`

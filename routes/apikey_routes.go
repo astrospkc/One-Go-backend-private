@@ -24,7 +24,7 @@ func RegisterAPIKeyRoutes(app *fiber.App){
 	
 	project.Post("/createProject", controller.CreateProject())
 	project.Put("/updateProject/:projectid", controller.UpdateProject())
-	project.Get("/readProject", controller.ReadProject())
+	project.Get("/readProject/:col_id", controller.ReadProject())
 	project.Get("/readProjectWithId/:projectid",controller.FindOneViaPID())
 	project.Delete("/deleteProject/:projectid",controller.DeleteProject())
 	// Blog-section

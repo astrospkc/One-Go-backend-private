@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"gobackend/connect"
@@ -11,13 +12,16 @@ import (
 	"gobackend/services"
 	"io"
 	"log"
+	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
-
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/resend/resend-go/v3"
+	"github.com/valkey-io/valkey-go"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -33,6 +37,8 @@ type UserResponse struct {
 	ProfilePic  string `bson:"profile_pic,omitempty" json:"profile_pic"`
 	Role 		string	`bson:"role,omitempty" json:"role"`
 	APIkey		string  `bson:"api_key,omitempty" json:"api_key"`
+	OTP         string		`bson:"otp,omitempty" json:"otp"`
+	OTPVerification string `bson:"otpVerification,omitempty" json:"otpVerification"`
 	
 }
 
@@ -64,9 +70,41 @@ type APIkey struct{
 	
 }
 
+type pendingUser struct {
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Role         string `json:"role,omitempty"`
+	ProfileKey   string `json:"profile_key,omitempty"` // temp S3 object key (if uploaded)
+	OTP          string `json:"otp,omitempty"`
+	CreatedAt    int64  `json:"created_at"`
+}
 
+var (
+	RedisClient valkey.Client  
+	Rctx        = context.Background() 
+)
 
+func init() {
+	valkeyURI := os.Getenv("AIVEN_KEY")
+	if valkeyURI == "" {
+		panic("AIVEN_KEY not set")
+	}
 
+	var err error
+	RedisClient, err = valkey.NewClient(valkey.ClientOption{InitAddress: []string{valkeyURI}})
+	if err != nil {
+		panic(err)
+	}
+
+	// optional test
+	err = RedisClient.Do(Rctx, RedisClient.B().Ping().Build()).Error()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to ping Valkey: %v", err))
+	}
+
+	fmt.Println("✅ Valkey client initialized successfully")
+}
 // first createtoken
 func CreateToken(userid string) (string, error){
 	envs:= env.NewEnv()
@@ -87,12 +125,104 @@ func CreateToken(userid string) (string, error){
 }
 
 
+func generateOtp() string{
+	rand.Seed(time.Now().UnixNano())
+	generatedOtp:=fmt.Sprintf("%06d",rand.Intn(900000)+100000)
+	return generatedOtp
+}
 
+func SendOtp() fiber.Handler{
+	return func(c *fiber.Ctx)error{
+		resendApiKey:=os.Getenv("RESEND_API_KEY")
+		name:=c.FormValue("name")
+		email:=c.FormValue("email")
+		password:=c.FormValue("password")
+		role:=c.FormValue("role")
+
+		if email==""||password==""{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"email and password required"})
+		}
+
+		// check existing user
+		var existing models.User
+		err:=connect.UsersCollection.FindOne(context.TODO(), primitive.M{"email":email}).Decode(&existing)
+		if err==nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"email already in use"})
+		}
+
+		// handle photo upload
+		var imagekey string
+		picHeader,_:=c.FormFile("file")
+		if picHeader!=nil{
+			file,err:=picHeader.Open()
+			if err!=nil{
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"Failed to open uploaded file"})
+			}
+			defer file.Close()
+			var buf bytes.Buffer
+			if _,err := io.Copy(&buf, file); err!=nil{
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":"failed to buffer uploaded file",
+				})
+			}
+			filename:=picHeader.Filename
+			ext:=strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)),".")
+			mimeType:=picHeader.Header.Get("Content-Type")
+			imagekey:=fmt.Sprintf("temo/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
+			_,err = services.CreatePresignedUrlAndUploadObject(os.Getenv("S3_BUCKET_NAME"),imagekey,buf.Bytes(),mimeType)
+			if err!=nil{
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to upload profle picture"})
+			}
+		}
+
+		// hashed password now and keep hashed in pending record
+		hashedPass, err:=bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to hash password"})
+		}
+
+		// generate otp and pending user record
+		otp:=generateOtp()
+		pending:=pendingUser{
+			Name: name,
+			Email: email,
+			PasswordHash: string(hashedPass),
+			Role: role,
+			ProfileKey: imagekey,
+			OTP: otp,
+			CreatedAt: time.Now().Unix(),	
+		}
+		key:=fmt.Sprintf("pending_user:%s",strings.ToLower(email))
+		b,_:=json.Marshal(pending)
+		if err:=RedisClient.Do(Rctx,RedisClient.B().Set().Key(key).Value(string(b)).Ex(10*time.Minute).Build()).Error();err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to store otp"})
+		}
+
+		// send otp
+		resendClient:= resend.NewClient(resendApiKey)
+		htmlBody := fmt.Sprintf(`<p>Your One-Go verification code is: <strong>%s</strong></p><p>This code expires in 10 minutes.</p>`, otp)
+		params:=&resend.SendEmailRequest{
+			From: "One-Go <no-reply@onego.xastrosbuild.site>",
+			To:[]string{email},
+			Html:htmlBody,
+			Subject: " Your One-Go verification code",
+		}
+		_,err =resendClient.Emails.Send(params)
+		if err!=nil{
+			_=RedisClient.B().CfDel().Key(key)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to send Otp email"})
+		}
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "OTP sent to email",
+			"email":   email,
+		})
+
+	}
+}
 
 func CreateUser() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		envs := env.NewEnv()
-
 		// Generate API Key
 		apiKey, err := GenerateApiKey()
 		if err != nil {
@@ -163,6 +293,9 @@ func CreateUser() fiber.Handler {
 			})
 		}
 
+		// otp generation
+		
+		generatedOtp:=generateOtp()
 		// Create user document
 		user := models.User{
 			Id:         primitive.NewObjectID().Hex(),
@@ -172,8 +305,10 @@ func CreateUser() fiber.Handler {
 			ProfilePic: objectKey,
 			Role:       role,
 			APIkey:     apiKey,
+			OTP:       	generatedOtp,
 		}
 
+	
 		// Save user
 		_, err= connect.UsersCollection.InsertOne(context.TODO(), user)
 		if err != nil {
@@ -181,6 +316,10 @@ func CreateUser() fiber.Handler {
 				"error": "Failed to create user",
 			})
 		}
+		
+
+		// verify the otp sent
+
 		
 		
 		tokenString, err := CreateToken(user.Id)

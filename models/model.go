@@ -15,6 +15,8 @@ type User struct {
 	Password 	string `bson:"password" json:"password"`
 	Role 		string	`bson:"role" json:"role"`
 	APIkey		string  `bson:"api_key" json:"api_key"`
+	OTP         string		`bson:"otp,omitempty" json:"otp"`
+	OTPVerification string `bson:"otpVerification,omitempty" json:"otpVerification"`
 	
 }
 

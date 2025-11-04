@@ -33,7 +33,7 @@ type Project struct{
 	Title		 string	`bson:"title" json:"title"`
 	Description	 string	`bson:"description,omitempty" json:"description"`
 	Tags		 string	`bson:"tags,omitempty" json:"tags"`
-	FileUpload   string `bson:"fileUpload,omitempty" json:"fileUpload"`
+	FileUpload   []string `bson:"fileUpload,omitempty" json:"fileUpload"`
 	Thumbnail 	 string	`bson:"thumbnail,omitempty" json:"thumbnail"`
 	GithubLink	 string	`bson:"githublink,omitempty" json:"githublink"`
 	DemoLink     string `bson:"demolink,omitempty" json:"demolink"`

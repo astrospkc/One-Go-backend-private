@@ -9,15 +9,17 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
+// https://one-go-private.vercel.app
+
 func main() {
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:3000,https://one-go-private.vercel.app", // you can also just allow this for production
-		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-		AllowHeaders: "*",
-		AllowCredentials: true,
-	}))
+    AllowOrigins:     "http://localhost:3000",
+    AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+    AllowHeaders:     "*",
+    AllowCredentials: true,
+}))
 
 	connect.Connect()
 

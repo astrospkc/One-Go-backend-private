@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"gobackend/env"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,20 +13,30 @@ import (
 func FetchUser() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		envs := env.NewEnv()
-		// authHeader := c.Get("Authorization")
-		// if authHeader==""||!strings.HasPrefix(authHeader, "Bearer "){
-		// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-		// 		"error": "Authentication token missing or malformed",
-		// 	})
-		// }
-		// fmt.Print("token in auth: ", authHeader)
-		// tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		tokenString := c.Cookies("token")
-		if tokenString == "" {
+		authHeader := c.Get("Authorization")
+		if authHeader==""||!strings.HasPrefix(authHeader, "Bearer "){
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing auth token in cookies",
+				"error": "Authentication token missing or malformed",
 			})
 		}
+		// fmt.Print("token in auth: ", authHeader)
+		tknString := strings.TrimPrefix(authHeader, "Bearer ")
+		// tokenString := c.Cookies("token")
+	
+		// fmt.Print("token String: ", tokenString , " \n")
+		// if tokenString == "" {
+		// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		// 		"error": "Missing auth token in cookies",
+		// 	})
+		// }
+		
+		// if(tknString=="" && tokenString=="" && tknString!=tokenString){
+		// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		// 		"error":"token not matching",
+		// 	})
+		// }
+
+		// fmt.Print("token string both,: ", tknString, " ", tokenString)
 		// fmt.Println("the tokenstring in middleware: ", tokenString)
 		secret := envs.JWT_SECRET
 		// fmt.Println("the secret: ", secret)
@@ -34,7 +45,7 @@ func FetchUser() fiber.Handler{
 				"error": "JWT secret not configured",
 			})
 		}
-		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (any, error) {
+		token, err := jwt.Parse(tknString, func(t *jwt.Token) (any, error) {
 			// Check signing method
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])

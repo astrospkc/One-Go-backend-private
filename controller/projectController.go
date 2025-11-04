@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -64,41 +65,49 @@ func CreateProject() fiber.Handler {
 				"error":"Invalid request body",
 			})
 		}
+
+		// MULTIPLE FILE UPLOAD SECTION
+		form, err := c.MultipartForm()
+		if err!=nil && err!= http.ErrNotMultipart{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"Failed to parse multipart form data",
+			})
+		}
 		
-		
+		var uploadedFiles []string
+		if form!=nil{
+			files:=form.File["files"]
+			for _, fileHeader := range files {
+				file,err:=fileHeader.Open()
+				if err!=nil{
+					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+						"error":"Failed to open upload file",
+					})
+				}
+				defer file.Close()
 
-		var objectKey string
-		picHeader, err := c.FormFile("file")
-		if err == nil && picHeader != nil {
-			file, err := picHeader.Open()
-			if err != nil {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Failed to open uploaded file",
-				})
-			}
-			defer file.Close()
+				var buf bytes.Buffer
+				_, err =io.Copy(&buf, file)
+				if err!=nil{
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"error":"Failed to buffer file",
+					})
+				}
+				filename:= fileHeader.Filename
+				ext:=strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
+				mimeType:= fileHeader.Header.Get("Content-Type")
+				// parts:=strings.SplitN(mimeType, "/",2)
+				objectKey := fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
+				_, err = services.CreatePresignedUrlAndUploadObject(envs.S3_BUCKET_NAME, objectKey, buf.Bytes(), mimeType)
+				if err != nil {
+					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+						"error": "Failed to upload profile picture",
+					})
+				}
 
-			var buf bytes.Buffer
-			_, err = io.Copy(&buf, file)
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to buffer uploaded file",
-				})
+				uploadedFiles = append(uploadedFiles, objectKey)
 			}
 
-			filename := picHeader.Filename
-			ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
-			mimeType := picHeader.Header.Get("Content-Type")
-			fmt.Println("mimetype: ",mimeType)
-			parts := strings.SplitN(mimeType, "/", 2)
-			fmt.Println("parts: ", parts)
-			objectKey = fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
-			_, err = services.CreatePresignedUrlAndUploadObject(envs.S3_BUCKET_NAME, objectKey, buf.Bytes(), mimeType)
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to upload profile picture",
-				})
-			}
 		}
 
 		project := models.Project{
@@ -108,7 +117,7 @@ func CreateProject() fiber.Handler {
 			Title: p.Title,
 			Description: p.Description,
 			Tags:p.Tags, // write tech staack here
-			FileUpload: objectKey,
+			FileUpload: uploadedFiles,
 			Thumbnail: p.Tags,
 			GithubLink: p.GithubLink,
 			DemoLink:p.DemoLink,
@@ -116,6 +125,7 @@ func CreateProject() fiber.Handler {
 			BlogLink:p.BlogLink,
 			TeamMembers: p.TeamMembers,
 			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		}
 		_,err = connect.ProjectCollection.InsertOne(context.TODO(), project)
 		if err!=nil{
@@ -125,7 +135,7 @@ func CreateProject() fiber.Handler {
 
 		
 	}
-	return c.JSON(fiber.Map{"success": "created",})
+	return c.JSON(fiber.Map{"success": "created", "data" : project})
 	}
 }
 
@@ -316,9 +326,6 @@ func DeleteAllProject() fiber.Handler{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Project was not deleted successful"})
 		}
 		return c.JSON(result)
-
-
-
 
 	}
 }

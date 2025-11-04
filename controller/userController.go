@@ -197,7 +197,7 @@ func CreateUser() fiber.Handler {
 			HTTPOnly: true,
 			Secure:   true,
 			Path:     "/",
-			MaxAge:   3600,
+			MaxAge:   1000 * 60 * 60 * 24 * 5,
 		})
 
 		// Save API key doc
@@ -280,7 +280,7 @@ func Login() fiber.Handler{
 			HTTPOnly: true,
 			Secure: true,
 			Path:"/",
-			MaxAge: 3600,
+			MaxAge: 1000 * 60 * 60 * 24 * 5,
 		})
 		resp := &Response{
 			Token:tokenString,

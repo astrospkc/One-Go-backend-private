@@ -2,6 +2,7 @@ package env
 
 import (
 	"log"
+
 	"github.com/spf13/viper"
 )
 
@@ -11,6 +12,12 @@ type ENV struct{
 	S3_BUCKET_NAME				string `mapstructure:"S3_BUCKET_NAME"`
 	AWS_SECRET_ACCESS_KEY		string `mapstructure:"AWS_SECRET_ACCESS_KEY"` 
 	AWS_ACCESS_KEY_ID			string `mapstructure:"AWS_ACCESS_KEY_ID"`
+	RESEND_API_KEY				string `mapstructure:"RESEND_API_KEY"`
+	AIVEN_KEY					string `mapstructure:"AIVEN_KEY"`
+	AIVEN_USERNAME				string `mapstructure:"AIVEN_USERNAME"`
+	AIVEN_PASSWORD				string `mapstructure:"AIVEN_PASSWORD"`
+	AIVEN_HOST					string `mapstructure:"AIVEN_HOST"`
+	AIVEN_PORT					int `mapstructure:"AIVEN_PORT"`
 }
 
 func NewEnv() *ENV {

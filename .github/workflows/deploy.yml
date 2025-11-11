@@ -13,7 +13,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Deploy to EC2 via SSH
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.22
+
+      - name: Build app
+        run: go build -o app .
+
+      - name: Upload binary to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          port: ${{ secrets.PORT }}
+          source: "app"
+          target: "/home/ubuntu/One-Go-backend-private/app"
+
+      - name: Restart service on EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.HOST }}
@@ -23,9 +41,5 @@ jobs:
           script: |
             echo "Connected to EC2 as $(whoami)"
             cd /home/ubuntu/One-Go-backend-private
-            git pull origin main
-            go build -o app
             sudo systemctl restart onego
-
-  
-    
+            echo "Deployment successful ✅"

@@ -13,18 +13,14 @@ import (
 	"io"
 	"log"
 	"math/rand"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"crypto/tls"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/resend/resend-go/v3"
-	"github.com/valkey-io/valkey-go"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -84,49 +80,7 @@ type pendingUser struct {
 	CreatedAt    int64  `json:"created_at"`
 }
 
-var (
-	RedisClient valkey.Client  
-	Rctx        = context.Background() 
-)
 
-func init() {
-	envs:=env.NewEnv()
-	valkeyURI:=envs.AIVEN_KEY
-	if valkeyURI == "" {
-		panic("AIVEN_KEY not set")
-	}
-	parsed, err := url.Parse(valkeyURI)
-	if err != nil {
-		panic("Invalid Redis URI: " + err.Error())
-	}
-
-	user := parsed.User.Username()
-	pass, _ := parsed.User.Password()
-	address := parsed.Host
-
-	useTLS := strings.HasPrefix(parsed.Scheme, "rediss")
-	var tlsConfig *tls.Config
-	if useTLS {
-		tlsConfig = &tls.Config{} // enable TLS (Aiven requires this)
-	}
-	RedisClient, err = valkey.NewClient(valkey.ClientOption{
-		InitAddress: []string{address},
-		Username:user,
-		Password: pass,
-		TLSConfig: tlsConfig,
-	})
-	if err != nil {
-		panic("Failed to initialize redis client:" + err.Error())
-	}
-
-	// optional test
-	err = RedisClient.Do(Rctx, RedisClient.B().Ping().Build()).Error()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to ping Valkey: %v", err))
-	}
-
-	fmt.Println("✅ Valkey client initialized successfully")
-}
 // first createtoken
 func CreateToken(userid string) (string, error){
 	envs:= env.NewEnv()
@@ -216,7 +170,7 @@ func SendOtp() fiber.Handler{
 		}
 		key:=fmt.Sprintf("pending_user:%s",strings.ToLower(email))
 		b,_:=json.Marshal(pending)
-		if err:=RedisClient.Do(Rctx,RedisClient.B().Set().Key(key).Value(string(b)).Ex(10*time.Minute).Build()).Error();err!=nil{
+		if err:=connect.RedisClient.Do(connect.Rctx ,connect.RedisClient.B().Set().Key(key).Value(string(b)).Ex(10*time.Minute).Build()).Error();err!=nil{
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to store otp"})
 		}
 
@@ -231,7 +185,7 @@ func SendOtp() fiber.Handler{
 		}
 		_,err =resendClient.Emails.Send(params)
 		if err!=nil{
-			_=RedisClient.B().CfDel().Key(key)
+			_=connect.RedisClient.B().CfDel().Key(key)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to send Otp email"})
 		}
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -267,7 +221,7 @@ func VerifyOTP() fiber.Handler{
 
 		// fetch pending user from redis
 		key:=fmt.Sprintf("pending_user:%s",strings.ToLower(email))
-		val,err:=RedisClient.Do(Rctx,RedisClient.B().Get().Key(key).Build()).ToString()
+		val,err:=connect.RedisClient.Do(connect.Rctx,connect.RedisClient.B().Get().Key(key).Build()).ToString()
 		if val==""{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"otp is not found, please insert correct otp"})
 		}else if err !=nil{
@@ -276,7 +230,7 @@ func VerifyOTP() fiber.Handler{
 
 		var pending pendingUser
 		if err := json.Unmarshal([]byte(val), &pending); err!=nil{
-			_=RedisClient.B().CfDel().Key(key)
+			_=connect.RedisClient.B().CfDel().Key(key)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"internal error"})
 		}
 
@@ -342,7 +296,7 @@ func VerifyOTP() fiber.Handler{
 		})
 
 		// remove pending record from redis
-		_=RedisClient.B().CfDel().Key(key)
+		_=connect.RedisClient.B().CfDel().Key(key)
 
 		userRes := models.User{
 			Id:         user.Id,
@@ -366,155 +320,6 @@ func VerifyOTP() fiber.Handler{
 		return c.Status(fiber.StatusOK).JSON(resp)
 	}
 }
-
-// func CreateUser() fiber.Handler {
-// 	return func(c *fiber.Ctx) error {
-// 		envs := env.NewEnv()
-// 		// Generate API Key
-// 		apiKey, err := GenerateApiKey()
-// 		if err != nil {
-// 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 				"error": "Failed to generate API key",
-// 			})
-// 		}
-
-// 		// Read form values
-// 		name := c.FormValue("name")
-// 		email := c.FormValue("email")
-// 		password := c.FormValue("password")
-// 		role := c.FormValue("role")
-
-// 		if email == "" || password == "" {
-// 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-// 				"error": "Email and password are required",
-// 			})
-// 		}
-
-// 		// Check if user already exists
-// 		var existingUser models.User
-// 		err = connect.UsersCollection.FindOne(context.TODO(), bson.M{"email": email}).Decode(&existingUser)
-// 		if err == nil {
-// 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-// 				"error": "Email is already in use",
-// 			})
-// 		}
-
-// 		// Handle optional profile picture
-// 		var objectKey string
-// 		picHeader, err := c.FormFile("file")
-// 		if err == nil && picHeader != nil {
-// 			file, err := picHeader.Open()
-// 			if err != nil {
-// 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-// 					"error": "Failed to open uploaded file",
-// 				})
-// 			}
-// 			defer file.Close()
-
-// 			var buf bytes.Buffer
-// 			_, err = io.Copy(&buf, file)
-// 			if err != nil {
-// 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 					"error": "Failed to buffer uploaded file",
-// 				})
-// 			}
-
-// 			filename := picHeader.Filename
-// 			ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
-// 			mimeType := picHeader.Header.Get("Content-Type")
-// 			objectKey = fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
-
-// 			_, err = services.CreatePresignedUrlAndUploadObject(envs.S3_BUCKET_NAME, objectKey, buf.Bytes(), mimeType)
-// 			if err != nil {
-// 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 					"error": "Failed to upload profile picture",
-// 				})
-// 			}
-// 		}
-
-// 		// Hash password
-// 		hashedPass, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-// 		if err != nil {
-// 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 				"error": "Failed to hash password",
-// 			})
-// 		}
-
-// 		// otp generation
-		
-// 		generatedOtp:=generateOtp()
-// 		// Create user document
-// 		user := models.User{
-// 			Id:         primitive.NewObjectID().Hex(),
-// 			Name:       name,
-// 			Email:      email,
-// 			Password:   string(hashedPass),
-// 			ProfilePic: objectKey,
-// 			Role:       role,
-// 			APIkey:     apiKey,
-// 			OTP:       	generatedOtp,
-// 		}
-
-	
-// 		// Save user
-// 		_, err= connect.UsersCollection.InsertOne(context.TODO(), user)
-// 		if err != nil {
-// 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 				"error": "Failed to create user",
-// 			})
-// 		}
-		
-
-// 		// verify the otp sent
-
-		
-		
-// 		tokenString, err := CreateToken(user.Id)
-// 		if err != nil {
-// 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 				"error": "Failed to create token",
-// 			})
-// 		}
-
-// 		// Set secure cookie
-// 		c.Cookie(&fiber.Cookie{
-// 			Name:     "token",
-// 			Value:    tokenString,
-// 			HTTPOnly: true,
-// 			Secure:   true,
-// 			Path:     "/",
-// 			MaxAge:   1000 * 60 * 60 * 24 * 5,
-// 		})
-
-// 		// Save API key doc
-// 		api := models.APIkey{
-// 			Id:         primitive.NewObjectID().Hex(),
-// 			UserId:    	user.Id,
-// 			Key:        apiKey,
-// 			UsageLimit: 50,
-// 		}
-// 		_, err = connect.APIKeyCollection.InsertOne(context.TODO(), api)
-// 		if err != nil {
-// 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 				"error": "Failed to save API key",
-// 			})
-// 		}
-// 		userRes := models.User{
-// 			Id:         user.Id,
-// 			Name:       name,
-// 			Email:      email,
-// 			ProfilePic: objectKey,
-// 			Role:       role,
-// 			APIkey:     apiKey,
-// 		}
-// 		// Final response
-// 		resp := &Response{
-// 			Token: tokenString,
-// 			User:  userRes,
-// 		}
-// 		return c.JSON(resp)
-// 	}
-// }
 
 
 

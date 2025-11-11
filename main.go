@@ -25,6 +25,19 @@ func main() {
 
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
 
+	connect.InitRedis()
+
+	// Example: Set & Get
+	connect.RedisClient.Do(connect.Rctx,
+		connect.RedisClient.B().Set().Key("key").Value("hello").Build(),
+	)
+
+	val, _ := connect.RedisClient.Do(connect.Rctx,
+		connect.RedisClient.B().Get().Key("key").Build(),
+	).ToString()
+
+	println("Value:", val)
+
 	routes.RegisterNormalRoutes(app)
 	routes.RegisterAPIKeyRoutes(app)
 

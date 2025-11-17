@@ -56,7 +56,6 @@ func DeleteFromS3(bucket, key string) error {
 	log.Fatalf("Delete failed: %s", resp.Status)
 	}
 
-	fmt.Println("File deleted successfully!")
 	
 	return nil
 }

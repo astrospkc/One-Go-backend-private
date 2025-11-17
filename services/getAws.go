@@ -21,7 +21,6 @@ import (
 
 
 func GetPresignedGetUrl(bucketName, fileKey string) (string, error) {
-	fmt.Println("bucket name and filekey: ", bucketName, fileKey)
 	envs:= env.NewEnv()
 
 	accessKey := envs.AWS_ACCESS_KEY_ID

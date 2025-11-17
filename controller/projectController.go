@@ -232,14 +232,12 @@ func UpdateProject() fiber.Handler {
             return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "No fields provided to update"})
         }
 
-		fmt.Println("setDoc: ", setDoc)
 		objId, err := primitive.ObjectIDFromHex(p_id)
 		if err !=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"Failed to convert in primitive type",
 			})
 		}
-		fmt.Printf("pid: %T \n", objId)
 		filter:=bson.M{"id":objId}
 		update:=bson.M{"$set":setDoc}
 		opts:=options.FindOneAndUpdate().SetReturnDocument(options.After)

@@ -18,7 +18,6 @@ import (
 )
 
 func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data[]byte, contentType string) (string, error){
-	fmt.Println("Hi there you called")
 	envs := env.NewEnv()
 
 	accessKey := envs.AWS_ACCESS_KEY_ID

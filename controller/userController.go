@@ -96,7 +96,6 @@ func CreateToken(userid string) (string, error){
 	if err!=nil{
 		return "", err
 	}
-	fmt.Printf("Token claims added: %+v\n", claims)
 	return tokenString, nil
 }
 
@@ -351,8 +350,7 @@ func Login() fiber.Handler{
 				"error":"NO user with this email",
 			})
 		}
-		fmt.Println("user: ", user)
-		fmt.Println("id in login :", user.Id)
+	
 		pass := d.Password
 		password := []byte(pass)
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password),password )
@@ -410,7 +408,6 @@ func GetUser() fiber.Handler{
 				"error":"userId cannot be fetched",
 			})
 		}
-		fmt.Println("userid: ", user_id)
 		var user models.User
 		err = connect.UsersCollection.FindOne(context.TODO(), bson.M{"id":user_id}).Decode(&user)
 		if err != nil {

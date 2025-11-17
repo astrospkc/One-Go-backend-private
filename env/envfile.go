@@ -34,6 +34,5 @@ func NewEnv() *ENV {
 	 log.Fatal("Environment can't be loaded: ", err)
 	}
 
-	// fmt.Println(env)
 	return &env
    }

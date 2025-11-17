@@ -38,7 +38,7 @@ var APIKeyCollection *mongo.Collection
 func Connect(){
 	envs := env.NewEnv()
 	var uri string 
-	// uri := "mongodb+srv://punamkumari399:RDQX28rR3RIh3V9m@cluster0.g24hw.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+	
 	if uri = envs.MONGODB_URI; uri == "" {
 		log.Fatal("You must set your 'MONGODB_URI' environment variable. See\n\t https://docs.mongodb.com/drivers/go/current/usage-examples/")
 	}
@@ -53,7 +53,7 @@ func Connect(){
 	client, err := mongo.Connect(opts)
 
 	if err != nil {
-		log.Fatal("the error while connecting client", err)
+		log.Fatal("the error while connecting mongo client", err)
 		return
 	}
 	// defer func() {
@@ -78,7 +78,7 @@ func Connect(){
 	_, err =UsersCollection.Indexes().CreateOne(context.TODO(), indexModel)
 	if err != nil{
 		
-		log.Fatal("error occured : ", err)
+		log.Fatal("error occured while connecting to users collection : ", err)
 	}
 	
 	ColCollection  = client.Database(dbName).Collection(colCollection)
@@ -91,7 +91,7 @@ func Connect(){
 	}
 	_, err = ColCollection.Indexes().CreateOne(context.TODO(),indexModel)
 	if err!=nil{
-		log.Fatal("error occurred: ", err)
+		log.Fatal("error occurred while connecting to collection collection: ", err)
 	}
 
 	ProjectCollection = client.Database(dbName).Collection(colNameProjects)
@@ -105,7 +105,7 @@ func Connect(){
 	}
 	_, err = ProjectCollection.Indexes().CreateOne(context.TODO(),indexModel)
 	if err!=nil{
-		log.Fatal("error occurred: ", err)
+		log.Fatal("error occurred while connecting to project collection: ", err)
 	}
 	BlogsCollection = client.Database(dbName).Collection(colNameBlogs)
 	LinksCollection = client.Database(dbName).Collection(colNameLinks)
@@ -122,15 +122,11 @@ func Connect(){
 	for _, val := range db_collection {
 		_, err = val.Indexes().CreateOne(context.TODO(), im)
 		if err!=nil{
-			log.Fatal("error occurred: ", err)
+			log.Fatal("error occurred while connecting to index: ", err)
 		}
 	}
-	
-	
-	// insert tea database
+
 
 	fmt.Println("Set up is done")
-	
-
 	
 }

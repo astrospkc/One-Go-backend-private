@@ -16,6 +16,7 @@ var (
 func InitRedis() {
 	envs:=env.NewEnv()
 	redisURI:=envs.AIVEN_KEY
+	fmt.Println("redis url: ", redisURI)
 	if redisURI == "" {
 		panic("AIVEN_SERVICE_URI not set")
 	}

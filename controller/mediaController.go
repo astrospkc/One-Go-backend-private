@@ -154,8 +154,6 @@ func GetAllMediaFiles() fiber.Handler{
 					"error":"No media could be found",
 				})
 			}
-
-			fmt.Println("Show file working")
 			
 			var file_info FileInfo
 			if err := c.BodyParser(&file_info); err!=nil{
@@ -163,13 +161,8 @@ func GetAllMediaFiles() fiber.Handler{
 					"error ":"Invalid request body",
 				})
 			}
-			fmt.Println("filekey; ", file_info.Key)
-			// filter := bson.M{
-			// 	"col_id":id,
-			// 	"key":file_info.key,
-			// }
+			
 			bucket := env.NewEnv().S3_BUCKET_NAME
-			fmt.Println("bucket: ", bucket)
 			url,err := services.GetPresignedGetUrl(bucket,file_info.Key)
 			if err!=nil{
 				c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -185,7 +178,6 @@ func GetAllMediaFiles() fiber.Handler{
 
 	func DeleteFile() fiber.Handler{
 		return func(c *fiber.Ctx) error{
-			fmt.Println("the dlete file")
 			media_id := c.Params("media_id")
 			id, err := primitive.ObjectIDFromHex(media_id)
 			if err!=nil{

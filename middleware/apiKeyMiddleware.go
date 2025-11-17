@@ -16,7 +16,6 @@ func ValidateAPIKey() fiber.Handler {
 	return func(c *fiber.Ctx) error{
 
 	apikey := c.Get("X-API-Key")
-	fmt.Println("apikey: ", apikey)
 
 	filter := bson.M{
 		"key":apikey,

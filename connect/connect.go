@@ -38,6 +38,7 @@ var APIKeyCollection *mongo.Collection
 func Connect(){
 	envs := env.NewEnv()
 	var uri string 
+	uri =envs.MONGODB_URI
 	
 	if uri = envs.MONGODB_URI; uri == "" {
 		log.Fatal("You must set your 'MONGODB_URI' environment variable. See\n\t https://docs.mongodb.com/drivers/go/current/usage-examples/")

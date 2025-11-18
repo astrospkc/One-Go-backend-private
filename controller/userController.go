@@ -108,7 +108,8 @@ func generateOtp() string{
 
 func SendOtp() fiber.Handler{
 	return func(c *fiber.Ctx)error{
-		resendApiKey:=os.Getenv("RESEND_API_KEY")
+		envs:=env.NewEnv()
+		resendApiKey:=envs.RESEND_API_KEY
 		name:=c.FormValue("name")
 		email:=c.FormValue("email")
 		password:=c.FormValue("password")
@@ -177,12 +178,13 @@ func SendOtp() fiber.Handler{
 		resendClient:= resend.NewClient(resendApiKey)
 		htmlBody := fmt.Sprintf(`<p>Your One-Go verification code is: <strong>%s</strong></p><p>This code expires in 10 minutes.</p>`, otp)
 		params:=&resend.SendEmailRequest{
-			From: "One-Go <no-reply@onego.xastrosbuild.site>",
+			From: "One-Go <no-reply@xastrosbuild.site>",
 			To:[]string{email},
 			Html:htmlBody,
 			Subject: " Your One-Go verification code",
 		}
 		_,err =resendClient.Emails.Send(params)
+		fmt.Println("params: ", params, err)
 		if err!=nil{
 			_=connect.RedisClient.B().CfDel().Key(key)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to send Otp email"})
@@ -320,6 +322,70 @@ func VerifyOTP() fiber.Handler{
 	}
 }
 
+type ForgotPasswordResponse struct {
+	Message string `json:"message"`
+	Code int `json:"code"`
+}
+
+func ForgotPassword() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// parse env
+		envs := env.NewEnv()
+		resendApiKey := envs.RESEND_API_KEY
+
+		// parse request body
+		type bodyReq struct {
+			Email string `json:"email"`
+		}
+
+		var req bodyReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(
+				ForgotPasswordResponse{
+					Message: "Invalid request body",
+					Code:    400,
+				},
+			)
+		}
+
+		// generate OTP
+		otp := generateOtp()
+
+		// send email
+		resendClient := resend.NewClient(resendApiKey)
+		htmlBody := fmt.Sprintf(
+			`<p>Your One-Go verification code is: <strong>%s</strong></p><p>This code expires in 10 minutes.</p>`,
+			otp,
+		)
+
+		params := &resend.SendEmailRequest{
+			From:    "One-Go <no-reply@xastrosbuild.site>",
+			To:      []string{req.Email},
+			Html:    htmlBody,
+			Subject: "Your One-Go verification code",
+		}
+
+		_, err := resendClient.Emails.Send(params)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				ForgotPasswordResponse{
+					Message: "Failed to send email",
+					Code:    500,
+				},
+			)
+		}
+
+		// success
+		return c.Status(fiber.StatusOK).JSON(
+			ForgotPasswordResponse{
+				Message: "OTP sent to email",
+				Code:    200,
+			},
+		)
+	}
+}
+
+
 
 
 
@@ -395,8 +461,6 @@ func Logout() fiber.Handler{
 		})
 	}
 }
-
-
 
 
 func GetUser() fiber.Handler{

@@ -48,6 +48,11 @@ type Response struct{
 	User		models.User `json:"user"`
 }
 
+type LoginResponse struct{
+	Token string `json:"token"`
+	User UserResponse `json:"user"`
+}
+
 
 type Project struct{
 	Id       primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
@@ -546,15 +551,22 @@ func Login() fiber.Handler{
 			Path:"/",
 			MaxAge: 1000 * 60 * 60 * 24 * 5,
 		})
-		resp := &Response{
-			Token:tokenString,
-			User:user,
+		UserRes := UserResponse{
+			Id:         user.Id,
+			Name:       user.Name,
+			Email:      user.Email,
+			ProfilePic: user.ProfilePic,
+			Role:       user.Role,
+			APIkey:     user.APIkey,
+		}
+		resp := &LoginResponse{
+			Token: tokenString,
+			User: UserRes,
 		}
 		return c.JSON(resp)
 
 	}
 }
-
 func Logout() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		c.Cookie(&fiber.Cookie{

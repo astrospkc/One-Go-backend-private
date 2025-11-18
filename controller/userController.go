@@ -351,6 +351,12 @@ func ForgotPassword() fiber.Handler {
 		// generate OTP
 		otp := generateOtp()
 
+		// save otp in redis
+		key:=fmt.Sprintf("reset_password:%s",strings.ToLower(req.Email))
+		b:=[]byte(otp)
+		if err:=connect.RedisClient.Do(connect.Rctx ,connect.RedisClient.B().Set().Key(key).Value(string(b)).Ex(10*time.Minute).Build()).Error();err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to store otp"})
+		}
 		// send email
 		resendClient := resend.NewClient(resendApiKey)
 		htmlBody := fmt.Sprintf(
@@ -379,6 +385,109 @@ func ForgotPassword() fiber.Handler {
 		return c.Status(fiber.StatusOK).JSON(
 			ForgotPasswordResponse{
 				Message: "OTP sent to email",
+				Code:    200,
+			},
+		)
+	}
+}
+
+type ResetPasswordResponse struct{
+	Message string `json:"message"`
+	Code int `json:"code"`
+}
+func ResetPassword()fiber.Handler{
+	return func(c *fiber.Ctx) error{
+		// email, otp and newPassword, confirm password and update password
+		type bodyReq struct{
+			Email string `json:"email"`
+			Otp string `json:"otp"`
+			NewPassword string `json:"newPassword"`
+			ConfirmPassword string `json:"confirmPassword"`
+		}
+
+		var req bodyReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(
+				ResetPasswordResponse{
+					Message: "Invalid request body",
+					Code:    400,
+				},
+			)
+		}
+		if req.Email==""||req.Otp==""||req.NewPassword==""||req.ConfirmPassword==""{
+			return c.Status(fiber.StatusBadRequest).JSON(
+				ResetPasswordResponse{
+					Message: "Email, OTP, New Password and Confirm Password are required",
+					Code:    400,
+				},
+			)
+		}
+		if req.NewPassword!=req.ConfirmPassword{
+			return c.Status(fiber.StatusBadRequest).JSON(
+				ResetPasswordResponse{
+					Message: "New Password and Confirm Password do not match",
+					Code:    400,
+				},
+			)
+		}
+
+		// validate otp
+		key:=fmt.Sprintf("reset_password:%s",strings.ToLower(req.Email))
+		// b:=[]byte(req.Otp)
+		val,err:=connect.RedisClient.Do(connect.Rctx,connect.RedisClient.B().Get().Key(key).Build()).ToString()
+		if val==""{
+			return c.Status(fiber.StatusBadRequest).JSON(
+				ResetPasswordResponse{
+					Message: "OTP is not found, please insert correct OTP",
+					Code:    400,
+				},
+			)
+		}else if err !=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				ResetPasswordResponse{
+					Message: "Valkey error",
+					Code:    500,
+				},
+			)
+		}
+		
+		if val!=req.Otp{
+			return c.Status(fiber.StatusBadRequest).JSON(
+				ResetPasswordResponse{
+					Message: "Invalid OTP",
+					Code:    400,
+				},
+			)
+		}
+		
+		// update password
+		// get the user and update password
+		// hash the password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				ResetPasswordResponse{
+					Message: "Failed to hash password",
+					Code:    500,
+				},
+			)
+		}
+		collection:=connect.UsersCollection
+
+		filter:=bson.M{"email":req.Email}
+		update:=bson.M{"$set":bson.M{"password":string(hashedPassword)}}
+		_,err=collection.UpdateOne(context.Background(), filter,update)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(
+				ResetPasswordResponse{
+					Message: "Failed to update password",
+					Code:    500,
+				},
+			)
+		}
+		return c.Status(fiber.StatusOK).JSON(
+			ResetPasswordResponse{
+				Message: "Password updated successfully",
 				Code:    200,
 			},
 		)

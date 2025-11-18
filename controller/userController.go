@@ -111,6 +111,11 @@ func generateOtp() string{
 	return generatedOtp
 }
 
+type RegisterSendOtpResponse struct{
+	Message string `json:"message"`
+	Email string `json:"email"`
+	Code  int `json:"code"`
+}
 func RegisterSendOtp() fiber.Handler{
 	return func(c *fiber.Ctx)error{
 		envs:=env.NewEnv()
@@ -121,14 +126,22 @@ func RegisterSendOtp() fiber.Handler{
 		role:=c.FormValue("role")
 
 		if email==""||password==""{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"email and password required"})
+			return c.Status(fiber.StatusBadRequest).JSON(RegisterSendOtpResponse{
+				Message: "email and password required",
+				Email: email,
+				Code: fiber.StatusBadRequest,
+			})
 		}
 
 		// check existing user
 		var existing models.User
 		err:=connect.UsersCollection.FindOne(context.TODO(), primitive.M{"email":email}).Decode(&existing)
 		if err==nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"email already in use"})
+			return c.Status(fiber.StatusBadRequest).JSON(RegisterSendOtpResponse{
+				Message: "email already in use",
+				Email: email,
+				Code: fiber.StatusBadRequest,
+			})
 		}
 
 		// handle photo upload
@@ -137,13 +150,19 @@ func RegisterSendOtp() fiber.Handler{
 		if picHeader!=nil{
 			file,err:=picHeader.Open()
 			if err!=nil{
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"Failed to open uploaded file"})
+				return c.Status(fiber.StatusBadRequest).JSON(RegisterSendOtpResponse{
+					Message: "Failed to open uploaded file",
+					Email: email,
+					Code: fiber.StatusBadRequest,
+				})
 			}
 			defer file.Close()
 			var buf bytes.Buffer
 			if _,err := io.Copy(&buf, file); err!=nil{
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error":"failed to buffer uploaded file",
+				return c.Status(fiber.StatusInternalServerError).JSON(RegisterSendOtpResponse{
+					Message: "failed to buffer uploaded file",
+					Email: email,
+					Code: fiber.StatusInternalServerError,
 				})
 			}
 			filename:=picHeader.Filename
@@ -152,14 +171,22 @@ func RegisterSendOtp() fiber.Handler{
 			imagekey:=fmt.Sprintf("temo/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
 			_,err = services.CreatePresignedUrlAndUploadObject(os.Getenv("S3_BUCKET_NAME"),imagekey,buf.Bytes(),mimeType)
 			if err!=nil{
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to upload profle picture"})
+				return c.Status(fiber.StatusInternalServerError).JSON(RegisterSendOtpResponse{
+					Message: "failed to upload profle picture",
+					Email: email,
+					Code: fiber.StatusInternalServerError,
+				})
 			}
 		}
 
 		// hashed password now and keep hashed in pending record
 		hashedPass, err:=bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to hash password"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterSendOtpResponse{
+				Message: "failed to hash password",
+				Email: email,
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		// generate otp and pending user record
@@ -176,7 +203,11 @@ func RegisterSendOtp() fiber.Handler{
 		key:=fmt.Sprintf("pending_user:%s",strings.ToLower(email))
 		b,_:=json.Marshal(pending)
 		if err:=connect.RedisClient.Do(connect.Rctx ,connect.RedisClient.B().Set().Key(key).Value(string(b)).Ex(10*time.Minute).Build()).Error();err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to store otp"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterSendOtpResponse{
+				Message: "failed to store otp",
+				Email: email,
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		// send otp
@@ -192,14 +223,26 @@ func RegisterSendOtp() fiber.Handler{
 		fmt.Println("params: ", params, err)
 		if err!=nil{
 			_=connect.RedisClient.B().CfDel().Key(key)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to send Otp email"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterSendOtpResponse{
+				Message: "failed to send Otp email",
+				Email: email,
+				Code: fiber.StatusInternalServerError,
+			})
 		}
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message": "OTP sent to email",
-			"email":   email,
+		return c.Status(fiber.StatusOK).JSON(RegisterSendOtpResponse{
+			Message: "OTP sent to email",
+			Email: email,
+			Code: fiber.StatusOK,
 		})
 
 	}
+}
+
+type RegisterVerifyOTPResponse struct{
+	Message string `json:"message"`
+	Token string `json:"token"`
+	User models.User `json:"user"`
+	Code  int `json:"code"`
 }
 
 func RegisterVerifyOTP() fiber.Handler{
@@ -215,40 +258,75 @@ func RegisterVerifyOTP() fiber.Handler{
 
 		var req bodyReq
 		if err:=c.BodyParser(&req); err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"invalid request"})
+			return c.Status(fiber.StatusBadRequest).JSON(RegisterVerifyOTPResponse{
+				Message: "invalid request",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusBadRequest,
+			})
 
 		}
 
 		email:=strings.TrimSpace(req.Email)
 		otp:=strings.TrimSpace(req.Otp)
 		if email==""||otp==""{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"email and otp must be filled"})
+			return c.Status(fiber.StatusBadRequest).JSON(RegisterVerifyOTPResponse{
+				Message: "email and otp must be filled",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusBadRequest,
+			})
 		}
 
 		// fetch pending user from redis
 		key:=fmt.Sprintf("pending_user:%s",strings.ToLower(email))
 		val,err:=connect.RedisClient.Do(connect.Rctx,connect.RedisClient.B().Get().Key(key).Build()).ToString()
 		if val==""{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"otp is not found, please insert correct otp"})
+			return c.Status(fiber.StatusBadRequest).JSON(RegisterVerifyOTPResponse{
+				Message: "otp is not found, please insert correct otp",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusBadRequest,
+			})
 		}else if err !=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"valkey error"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterVerifyOTPResponse{
+				Message: "valkey error",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		var pending pendingUser
 		if err := json.Unmarshal([]byte(val), &pending); err!=nil{
 			_=connect.RedisClient.B().CfDel().Key(key)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"internal error"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterVerifyOTPResponse{
+				Message: "internal error",
+			Token:"",
+				User:models.User{},
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		// validate otp
 		if pending.OTP!=otp{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"invalid otp"})
+			return c.Status(fiber.StatusBadRequest).JSON(RegisterVerifyOTPResponse{
+				Message: "invalid otp",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusBadRequest,
+			})
 		}
 
 		// valid -> create new user
 		apikey, err:=GenerateApiKey()
 		if err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"Failed to generate api key"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterVerifyOTPResponse{
+				Message: "Failed to generate api key",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		user := models.User{
@@ -265,7 +343,12 @@ func RegisterVerifyOTP() fiber.Handler{
 
 		_,err = connect.UsersCollection.InsertOne(context.TODO(),user)
 		if err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to create user"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterVerifyOTPResponse{
+				Message: "failed to create user",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		// create api key record
@@ -281,14 +364,22 @@ func RegisterVerifyOTP() fiber.Handler{
 		if err!=nil{
 			// rolling back user insertion in case api key creation failed
 			_, _= connect.UsersCollection.DeleteOne(context.TODO(), bson.M{"id":user.Id})
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error":"failed to save api key"})
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterVerifyOTPResponse{
+				Message: "failed to save api key",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusInternalServerError,
+			})
 		}
 
 		// 
 		tokenString, err := CreateToken(user.Id)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to create token",
+			return c.Status(fiber.StatusInternalServerError).JSON(RegisterVerifyOTPResponse{
+				Message: "Failed to create token",
+				Token:"",
+				User:models.User{},
+				Code: fiber.StatusInternalServerError,
 			})
 		}
 		// set secure cookie 
@@ -313,17 +404,14 @@ func RegisterVerifyOTP() fiber.Handler{
 			APIkey:     user.APIkey,
 		}
 
-		resp := struct {
-			Message string      `json:"message"`
-			Token   string      `json:"token"`
-			User    models.User `json:"user"`
-		}{
+		
+
+		return c.Status(fiber.StatusOK).JSON(RegisterVerifyOTPResponse{
 			Message: "verified and user created",
 			Token:   tokenString,
 			User:    userRes,
-		}
-
-		return c.Status(fiber.StatusOK).JSON(resp)
+			Code:    fiber.StatusOK,
+		})
 	}
 }
 

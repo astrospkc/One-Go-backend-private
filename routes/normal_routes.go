@@ -13,8 +13,8 @@ func RegisterNormalRoutes(app *fiber.App){
 		// handling normal routings
 
 	auth:= app.Group("/auth")
-	auth.Post("/register/send-otp", controller.SendOtp())
-	auth.Post("/register/verify-otp", controller.VerifyOTP())
+	auth.Post("/register/send-otp", controller.RegisterSendOtp())
+	auth.Post("/register/verify-otp", controller.RegisterVerifyOTP())
 	auth.Post("/login", controller.Login())
 	auth.Post("/logout", controller.Logout())
 	auth.Get("/getUser",middleware.FetchUser(), controller.GetUser())

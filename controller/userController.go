@@ -111,7 +111,7 @@ func generateOtp() string{
 	return generatedOtp
 }
 
-func SendOtp() fiber.Handler{
+func RegisterSendOtp() fiber.Handler{
 	return func(c *fiber.Ctx)error{
 		envs:=env.NewEnv()
 		resendApiKey:=envs.RESEND_API_KEY
@@ -202,7 +202,7 @@ func SendOtp() fiber.Handler{
 	}
 }
 
-func VerifyOTP() fiber.Handler{
+func RegisterVerifyOTP() fiber.Handler{
 	return func(c*fiber.Ctx) error{
 		envs:=env.NewEnv()
 		resendApiKey:=envs.RESEND_API_KEY

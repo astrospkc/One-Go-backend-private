@@ -30,5 +30,5 @@
 ##### Brainstorming phase
 
 ###### Locally setting up
- rsync -avz -e "ssh -i ./punam/one-go.pem" ./punam/punam/private_cms_portfolio/cms_gobackend/app ubuntu@35.173.12.172:/home/ubuntu/app
+ rsync -avz -e "ssh -i ./punam/one-go.pem" ./punam/punam/private_cms_portfolio/cms_gobackend/app ubuntu@35.173.12.172:/home/ubuntu/One-Go-backend-private
 ### learnings

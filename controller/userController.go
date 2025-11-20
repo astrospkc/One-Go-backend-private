@@ -593,7 +593,7 @@ func ResetPassword()fiber.Handler{
 
 func Login() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		
+		fmt.Println("its login handleer")
 		var d struct{
 			Email string `bson:"email" json:"email"`
 			Password string `bson:"password" json:"password"`

@@ -609,7 +609,7 @@ func Login() fiber.Handler{
 				"error":"Email and Password are required",
 			})
 		}
-
+		fmt.Println("email and password: ", d.Email, d.Password)
 		
 		var user models.User
 		err:= connect.UsersCollection.FindOne(context.TODO(), bson.M{"email":d.Email}).Decode(&user)

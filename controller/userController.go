@@ -681,7 +681,7 @@ func GetUser() fiber.Handler{
 				"error":"userId cannot be fetched",
 			})
 		}
-		var user models.User
+		var user UserResponse
 		err = connect.UsersCollection.FindOne(context.TODO(), bson.M{"id":user_id}).Decode(&user)
 		if err != nil {
 			if errors.Is(err, mongo.ErrNoDocuments) {

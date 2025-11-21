@@ -56,14 +56,7 @@ func CreateCollection() fiber.Handler{
 				"error":"Try with different name or check for missing details",
 			})
 		}
-		return c.JSON(fiber.Map{
-			"id":collection.Id,
-			"user_id":collection.UserId,
-			"title":collection.Title,
-			"description":collection.Description,
-			"time":collection.CreatedAt,
-
-		})
+		return c.JSON(collection)
 
 	}
 }

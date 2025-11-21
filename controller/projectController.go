@@ -124,8 +124,8 @@ func CreateProject() fiber.Handler {
 			LiveDemoLink: p.LiveDemoLink,
 			BlogLink:p.BlogLink,
 			TeamMembers: p.TeamMembers,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 		}
 		_,err = connect.ProjectCollection.InsertOne(context.TODO(), project)
 		if err!=nil{

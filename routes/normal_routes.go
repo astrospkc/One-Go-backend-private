@@ -17,7 +17,7 @@ func RegisterNormalRoutes(app *fiber.App){
 	auth.Post("/register/verify-otp", controller.RegisterVerifyOTP())
 	auth.Post("/login", controller.Login())
 	auth.Post("/logout", controller.Logout())
-	auth.Get("/getUser",middleware.FetchUser(), controller.GetUser())
+	auth.Get("/user",middleware.FetchUser(), controller.GetUser())
 	auth.Put("/editUser", middleware.FetchUser(), controller.UpdateUser())
 	auth.Post("/forgot-password", controller.ForgotPassword())
 	auth.Post("/reset-password", controller.ResetPassword())

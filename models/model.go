@@ -25,7 +25,8 @@ type Collection struct{
 	UserId	string 	`bson:"user_id" json:"user_id"`
 	Title 		string `bson:"title" json:"title"`
 	Description	string `bson:"description" json:"description"`
-	CreatedAt	time.Time	`bson:"time" json:"time"`
+	CreatedAt	time.Time	`bson:"created_at" json:"created_at"`
+	UpdatedAt	time.Time	`bson:"updated_at" json:"updated_at"`
 }
 
 type Project struct{
@@ -42,8 +43,8 @@ type Project struct{
 	LiveDemoLink string	`bson:"livedemolink,omitempty" json:"livedemolink"`
 	BlogLink     string `bson:"blogLink,omitempty" json:"blogLink"`
 	TeamMembers  string `bson:"teamMembers,omitempty" json:"teamMembers"`
-	CreatedAt	time.Time	`bson:"time" json:"time"`
-	UpdatedAt   time.Time  `bson:"updated_time" json:"updated_time"`
+	CreatedAt	time.Time	`bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `bson:"updated_at" json:"updated_at"`
 }
 
 type Category struct {
@@ -64,7 +65,7 @@ type Blog struct{
 	Tags		string	`bson:"tags,omitempty" json:"tags"`
 	CoverImage 	string	`bson:"coverImage,omitempty" json:"coverImage"`
 	Published 	time.Time	`bson:"published" json:"published"`
-	CreatedAt	time.Time	`bson:"time" json:"time"`
+	CreatedAt	time.Time	`bson:"created_at" json:"created_at"`
 	LastEdited  time.Time   `bson:"lastedited" json:"lastedited"`
 	Status		string 		`bson:"status" json:"status"`
 }
@@ -77,7 +78,8 @@ type Media struct{
 	// File        multipart.File 	`bson:"file" json:"file"`
 	Title 		string	`bson:"title" json:"title"`
 	Content		string	`bson:"content" json:"content"`
-	CreatedAt	time.Time	`bson:"time" json:"time"`
+	CreatedAt	time.Time	`bson:"created_at" json:"created_at"`
+	UpdatedAt	time.Time	`bson:"updated_at" json:"updated_at"`
 }
 // type (image, video, audio, doc, pdf, etc.)
 type Link struct{

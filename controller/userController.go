@@ -82,7 +82,7 @@ type pendingUser struct {
 	Role         string `json:"role,omitempty"`
 	ProfileKey   string `json:"profile_key,omitempty"` // temp S3 object key (if uploaded)
 	OTP          string `json:"otp,omitempty"`
-	CreatedAt    int64  `json:"created_at"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 
@@ -198,7 +198,7 @@ func RegisterSendOtp() fiber.Handler{
 			Role: role,
 			ProfileKey: imagekey,
 			OTP: otp,
-			CreatedAt: time.Now().Unix(),	
+			CreatedAt: time.Now().UTC(),	
 		}
 		key:=fmt.Sprintf("pending_user:%s",strings.ToLower(email))
 		b,_:=json.Marshal(pending)
@@ -586,10 +586,6 @@ func ResetPassword()fiber.Handler{
 		)
 	}
 }
-
-
-
-
 
 func Login() fiber.Handler{
 	return func(c *fiber.Ctx) error{

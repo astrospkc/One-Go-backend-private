@@ -168,7 +168,8 @@ func UpdateCollection() fiber.Handler {
         
 
         // Always update time
-        updateFields["updatedAt"] = time.Now()
+        updateFields["updated_at"] = time.Now().UTC()
+	
 
         // If nothing to update
         if len(updateFields) == 1 { // only updatedAt present

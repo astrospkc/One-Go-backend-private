@@ -39,7 +39,7 @@ type ProjectUpdate struct {
 
 func UpdatedProject() *ProjectUpdate{
 	return &ProjectUpdate{
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now().UTC(),
 	}
 }
 

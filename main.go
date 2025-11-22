@@ -20,7 +20,7 @@ func main() {
     AllowHeaders:     "*",
     AllowCredentials: true,
 }))
-
+	app.Server().MaxRequestBodySize = 50 * 1024 * 1024
 	connect.Connect()
 
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")

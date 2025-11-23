@@ -1,20 +1,20 @@
 package controller
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"gobackend/connect"
 	"gobackend/env"
 	"gobackend/models"
-	"gobackend/services"
 
+	"log"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -45,12 +45,57 @@ func UpdatedProject() *ProjectUpdate{
 
 // import "github.com/gofiber/fiber/v2"
 
+// func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data[]byte, contentType string) 
 
+func GetFilePresignedUrl() fiber.Handler{
+	return func(c *fiber.Ctx) error{
+		envs:=env.NewEnv()
+		accessKey := envs.AWS_ACCESS_KEY_ID
+		secretKey :=envs.AWS_SECRET_ACCESS_KEY
+
+		cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+	)
+	if err != nil {
+		log.Fatal("failed to load config:", err)
+	}
+	
+		bucketName:=envs.S3_BUCKET_NAME
+		var req struct {
+			FileKey []string `json:"fileKey"`
+		}
+		if err := c.BodyParser(&req); err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"Invalid request body",
+			})
+		}
+		client := s3.NewFromConfig(cfg)
+		presignClient := s3.NewPresignClient(client)
+		urls := []string{}
+		for _, filename:=range req.FileKey{
+			objectKey:="uploads/" + string(filename)
+			params := &s3.PutObjectInput{
+			Bucket: aws.String(bucketName),
+			Key:    aws.String(objectKey),
+			}
+			presignedURL, err := presignClient.PresignPutObject(context.TODO(), params, func(opts *s3.PresignOptions) {
+						opts.Expires = time.Hour // expires in 1 hour
+			})
+			if err != nil {
+            return c.Status(500).JSON(fiber.Map{"error": "failed presigned url"})
+        }
+			urls = append(urls, presignedURL.URL)
+		
+		}
+
+		return c.JSON(fiber.Map{"urls": urls})
+	}
+}
 
 func CreateProject() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// first get the user email , for inserting to that userid
-		envs:= env.NewEnv()
 		col_id:= c.Params("col_id")
 		user_id, err:= FetchUserId(c)
 		if err!=nil{
@@ -66,50 +111,6 @@ func CreateProject() fiber.Handler {
 			})
 		}
 
-		// MULTIPLE FILE UPLOAD SECTION
-		form, err := c.MultipartForm()
-		if err!=nil && err!= http.ErrNotMultipart{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"Failed to parse multipart form data",
-			})
-		}
-		
-		var uploadedFiles []string
-		if form!=nil{
-			files:=form.File["files"]
-			for _, fileHeader := range files {
-				file,err:=fileHeader.Open()
-				if err!=nil{
-					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-						"error":"Failed to open upload file",
-					})
-				}
-				defer file.Close()
-
-				var buf bytes.Buffer
-				_, err =io.Copy(&buf, file)
-				if err!=nil{
-					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-						"error":"Failed to buffer file",
-					})
-				}
-				filename:= fileHeader.Filename
-				ext:=strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
-				mimeType:= fileHeader.Header.Get("Content-Type")
-				// parts:=strings.SplitN(mimeType, "/",2)
-				objectKey := fmt.Sprintf("uploads/pic_%s.%s", time.Now().Format("20060102_150405"), ext)
-				_, err = services.CreatePresignedUrlAndUploadObject(envs.S3_BUCKET_NAME, objectKey, buf.Bytes(), mimeType)
-				if err != nil {
-					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-						"error": "Failed to upload profile picture",
-					})
-				}
-
-				uploadedFiles = append(uploadedFiles, objectKey)
-			}
-
-		}
-
 		project := models.Project{
 			Id:primitive.NewObjectID().Hex(),
 			UserId:user_id,
@@ -117,7 +118,7 @@ func CreateProject() fiber.Handler {
 			Title: p.Title,
 			Description: p.Description,
 			Tags:p.Tags, // write tech staack here
-			FileUpload: uploadedFiles,
+			FileUpload: p.FileUpload,
 			Thumbnail: p.Tags,
 			GithubLink: p.GithubLink,
 			DemoLink:p.DemoLink,

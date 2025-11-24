@@ -273,7 +273,10 @@ func UpdateProject() fiber.Handler {
         return c.JSON(updatedDoc)
 	}
 }
-
+type ReadProjectResponse struct{
+	Project models.Project `json:"project"`
+	Code int `json:"code"`
+}
 func FindOneViaPID() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		p_id:= c.Params("projectid")
@@ -287,11 +290,15 @@ func FindOneViaPID() fiber.Handler{
 		var project models.Project
 		err := connect.ProjectCollection.FindOne(context.Background(), bson.M{"id": p_id} ).Decode(&project)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"Failed to find the project with this project id, try with valid project id",
+			return c.Status(fiber.StatusBadRequest).JSON(ReadProjectResponse{
+				Project: project,
+				Code: fiber.StatusBadRequest,
 			})
 		}
-		return c.JSON(project)
+		return c.JSON(ReadProjectResponse{
+			Project: project,
+			Code: fiber.StatusOK,
+		})
 	}
 }
 

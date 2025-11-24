@@ -283,11 +283,8 @@ func FindOneViaPID() fiber.Handler{
 				"error":"Please provide project id",
 			})
 		}
-		// objID, err := primitive.ObjectIDFromHex(p_id)
-		// if err != nil {
-		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid project ID format",})
-		// }
-		var project ProjectResponse
+		
+		var project models.Project
 		err := connect.ProjectCollection.FindOne(context.Background(), bson.M{"id": p_id} ).Decode(&project)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

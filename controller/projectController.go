@@ -189,6 +189,11 @@ func GetAllProject() fiber.Handler{
 
 	}
 }
+
+type GetAllProjectOfCollectionIdResponse struct{
+	Projects []models.Project `json:"projects"`
+	Code int `json:"code"`
+}
 func GetAllProjectOfCollectionId() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		col_id := c.Params("col_id")
@@ -197,19 +202,24 @@ func GetAllProjectOfCollectionId() fiber.Handler{
 
 		// cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"email":email})
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No project could be found",
+			return c.Status(fiber.StatusBadRequest).JSON(GetAllProjectOfCollectionIdResponse{
+				Projects: nil,
+				Code: fiber.StatusBadRequest,
 			})
 		}
 		
 		var projects []models.Project
 		if err := cursor.All(context.TODO(), &projects); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to parse project data",
+			return c.Status(fiber.StatusInternalServerError).JSON(GetAllProjectOfCollectionIdResponse{
+				Projects: nil,
+				Code: fiber.StatusInternalServerError,
 			})
 		}
 		// fmt.Println(projects)
-		return c.JSON(projects)
+		return c.JSON(GetAllProjectOfCollectionIdResponse{
+			Projects: projects,
+			Code: fiber.StatusOK,
+		})
 	}
 }
 

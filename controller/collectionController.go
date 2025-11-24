@@ -61,29 +61,39 @@ func CreateCollection() fiber.Handler{
 	}
 }
 
+type GetAllCollectionResponse struct{
+	Collections []models.Collection `json:"collections"`
+	Code int `json:"code"`
+} 
 func GetAllCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 
 		user_id, err:= FetchUserId(c)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":"failed to fetch user_id",
-		})
+			return c.Status(fiber.StatusBadRequest).JSON(GetAllCollectionResponse{
+				Collections: nil,
+				Code: fiber.StatusBadRequest,
+			})
 		}
 		cursor, err := connect.ColCollection.Find(context.TODO(), bson.M{"user_id":user_id})
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No collection could be found",
+			return c.Status(fiber.StatusBadRequest).JSON(GetAllCollectionResponse{
+				Collections: nil,
+				Code: fiber.StatusBadRequest,
 			})
 		}
 		var collections []models.Collection
 		if err := cursor.All(context.TODO(), &collections); err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to parse project data",
+			return c.Status(fiber.StatusInternalServerError).JSON(GetAllCollectionResponse{
+				Collections: nil,
+				Code: fiber.StatusInternalServerError,
 			})
 		}
 		// fmt.Println(collections)
-		return c.JSON(collections)
+		return c.JSON(GetAllCollectionResponse{
+			Collections: collections,
+			Code: fiber.StatusOK,
+		})
 	}
 }
 type GetCollectionResponse struct{

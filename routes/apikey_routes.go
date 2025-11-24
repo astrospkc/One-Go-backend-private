@@ -16,18 +16,20 @@ func RegisterAPIKeyRoutes(app *fiber.App){
 	auth.Get("/getUser", controller.GetUser())
 
 	collection:=app.Group("/api/collection", middleware.ValidateAPIKey())
-	collection.Post("/createCollection", controller.CreateCollection())
-	collection.Get("/getAllCollection", controller.GetAllCollection())
+	collection.Post("/", controller.CreateCollection())
+	collection.Get("/", controller.GetAllCollection())
 	
 	// handling normal routings with auth middleware
 	project := app.Group("/api/project", middleware.ValidateAPIKey())
 	
-	project.Post("/createProject", controller.CreateProject())
-	project.Put("/updateProject/:projectid", controller.UpdateProject())
-	project.Get("/readProject/:col_id", controller.ReadProject())
-	project.Get("/readProjectWithId/:projectid",controller.FindOneViaPID())
-	project.Delete("/deleteProject/:projectid",controller.DeleteProject())
+	project.Post("/:col_id", controller.CreateProject())
+	project.Put("/:projectid", controller.UpdateProject())
+	project.Get("/", controller.GetAllProject())
+	project.Get("/:col_id", controller.GetAllProjectOfCollectionId())
+	project.Get("/:projectid",controller.FindOneViaPID())
+	project.Delete("/:projectid",controller.DeleteProject())
 	// Blog-section
+	project.Delete("/:col_id", controller.DeleteAllProject())
 	blog := app.Group("/api/blog", middleware.ValidateAPIKey())
 
 	blog.Post("/createBlog/:col_id",controller.CreateBlog())

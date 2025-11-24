@@ -24,8 +24,8 @@ func RegisterNormalRoutes(app *fiber.App){
 
 	// handling collections routes
 	col := app.Group("/collection",middleware.FetchUser())
-	col.Post("/createCollection", controller.CreateCollection())
-	col.Get("/getAllCollection", controller.GetAllCollection())
+	col.Post("/", controller.CreateCollection())
+	col.Get("/", controller.GetAllCollection())
 	col.Delete("/:id", controller.DeleteCollection())
 	col.Put("/:id", controller.UpdateCollection())
 	col.Get("/:id", controller.GetCollection())
@@ -33,13 +33,13 @@ func RegisterNormalRoutes(app *fiber.App){
 	// handling normal routings with auth middleware
 	project := app.Group("/project", middleware.FetchUser())
 	
-	project.Post("/createProject/:col_id", controller.CreateProject())
-	project.Put("/updateProject/:projectid", controller.UpdateProject())
-	project.Get("/getAllProject", controller.GetAllProject())
-	project.Get("/readProject/:col_id", controller.GetAllProjectOfCollectionId())
-	project.Get("/readProjectWithId/:projectid",controller.FindOneViaPID())
-	project.Delete("/deleteProject/:projectid",controller.DeleteProject())
-	project.Delete("/deleteAllProject/:u_id", controller.DeleteAllProject())
+	project.Post("/:col_id", controller.CreateProject())
+	project.Put("/:projectid", controller.UpdateProject())
+	project.Get("/", controller.GetAllProject())
+	project.Get("/:col_id", controller.GetAllProjectOfCollectionId())
+	project.Get("/:projectid",controller.FindOneViaPID())
+	project.Delete("/:projectid",controller.DeleteProject())
+	project.Delete("/:col_id", controller.DeleteAllProject())
 	project.Post("/presignedUrl", controller.GetFilePresignedUrl())
 	// Blog-section
 	blog := app.Group("/blog", middleware.FetchUser())

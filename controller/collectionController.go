@@ -131,7 +131,6 @@ func DeleteCollection() fiber.Handler{
 	}
 }
 
-
 type UpdateCollectionResponse struct {
     Collection models.Collection `json:"collection"`
     Code       int               `json:"code"`

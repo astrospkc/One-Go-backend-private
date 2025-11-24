@@ -160,13 +160,18 @@ func CreateProject() fiber.Handler {
 }
 
 // get the col_id , check the project with this col_id exists?
+type GetAllProjectResponse struct{
+	Projects []models.Project `json:"projects"`
+	Code int `json:"code"`
+}
 func GetAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		// envs:=env.NewEnv()
 		user_id, err:=FetchUserId(c)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "error fetching userId",
+			return c.Status(fiber.StatusBadRequest).JSON(GetAllProjectResponse{
+				Projects: nil,
+				Code: fiber.StatusBadRequest,
 			})
 		}
 
@@ -175,17 +180,22 @@ func GetAllProject() fiber.Handler{
 	
 		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":user_id})
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No collection could be found",
+			return c.Status(fiber.StatusBadRequest).JSON(GetAllProjectResponse{
+				Projects: nil,
+				Code: fiber.StatusBadRequest,
 			})
 		}
 		var projects []models.Project
 		if err := cursor.All(context.TODO(), &projects); err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to parse project data",
+			return c.Status(fiber.StatusInternalServerError).JSON(GetAllProjectResponse{
+				Projects: nil,
+				Code: fiber.StatusInternalServerError,
 			})
 		}
-		return c.JSON(projects)
+		return c.JSON(GetAllProjectResponse{
+			Projects: projects,
+			Code: fiber.StatusOK,
+		})
 
 	}
 }

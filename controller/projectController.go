@@ -37,6 +37,25 @@ type ProjectUpdate struct {
     // (no CreatedAt here)
 }
 
+type ProjectResponse struct {
+    Title        *string `json:"title,omitempty" bson:"title,omitempty"`
+    Description  *string `json:"description,omitempty" bson:"description,omitempty"`
+    Tags         *string `json:"tags,omitempty" bson:"tags,omitempty"`
+	FileUpload   string `bson:"fileUpload,omitempty" json:"fileUpload,omitempty"`
+    Thumbnail    *string `json:"thumbnail,omitempty" bson:"thumbnail,omitempty"`
+    GithubLink   *string `json:"githublink,omitempty" bson:"githublink,omitempty"`
+	DemoLink      string `json:"demolink,omitempty" bson:"demolink,omitempty"`
+    LiveDemoLink *string `json:"livedemolink,omitempty" bson:"livedemolink,omitempty"`
+	BlogLink     string `bson:"blogLink,omitempty" json:"blogLink,omitempty"`
+	TeamMembers  string `bson:"teamMembers,omitempty" json:"teamMembers,omitempty"`
+	Id string `bson:"id,omitempty" json:"id"`
+	UserId string `bson:"user_id,omitempty" json:"user_id"`
+	CollectionId string `bson:"collection_id,omitempty" json:"collection_id"`
+	CreatedAt    time.Time `bson:"created_time" json:"created_at"`
+	UpdatedAt    time.Time `bson:"updated_time" json:"updated_at"`
+    
+}
+
 func UpdatedProject() *ProjectUpdate{
 	return &ProjectUpdate{
 		UpdatedAt: time.Now().UTC(),
@@ -144,7 +163,6 @@ func CreateProject() fiber.Handler {
 func GetAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		// envs:=env.NewEnv()
-		
 		user_id, err:=FetchUserId(c)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -171,7 +189,7 @@ func GetAllProject() fiber.Handler{
 
 	}
 }
-func ReadProject() fiber.Handler{
+func GetAllProjectOfCollectionId() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		col_id := c.Params("col_id")
 		// var project_info models.Project
@@ -259,6 +277,7 @@ func UpdateProject() fiber.Handler {
 func FindOneViaPID() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		p_id:= c.Params("projectid")
+		fmt.Println("project id: ", p_id)
 		if p_id==""{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"Please provide project id",
@@ -268,8 +287,8 @@ func FindOneViaPID() fiber.Handler{
 		// if err != nil {
 		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid project ID format",})
 		// }
-		var project ProjectUpdate
-		err := connect.ProjectCollection.FindOne(context.TODO(), bson.M{"id": p_id} ).Decode(&project)
+		var project ProjectResponse
+		err := connect.ProjectCollection.FindOne(context.Background(), bson.M{"id": p_id} ).Decode(&project)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"Failed to find the project with this project id, try with valid project id",

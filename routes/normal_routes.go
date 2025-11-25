@@ -42,6 +42,7 @@ func RegisterNormalRoutes(app *fiber.App){
 	project.Get("/readProject/:projectid",controller.FindOneViaPID())
 	project.Delete("/deleteProject/:projectid",controller.DeleteProject())
 	project.Delete("/deleteAllProject/:col_id", controller.DeleteAllProject())
+	project.Delete("/deleteFile/:project_id", controller.DeleteFile())
 
 	// Blog-section
 	blog := app.Group("/blog", middleware.FetchUser())

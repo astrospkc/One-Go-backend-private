@@ -176,7 +176,7 @@ func GetAllMediaFiles() fiber.Handler{
 		}
 	}
 
-	func DeleteFile() fiber.Handler{
+	func DeleteMediaFile() fiber.Handler{
 		return func(c *fiber.Ctx) error{
 			media_id := c.Params("media_id")
 			id, err := primitive.ObjectIDFromHex(media_id)

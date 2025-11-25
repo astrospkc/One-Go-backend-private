@@ -8,6 +8,7 @@ import (
 	"gobackend/connect"
 	"gobackend/env"
 	"gobackend/models"
+	"gobackend/services"
 
 	"log"
 
@@ -16,8 +17,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -66,6 +69,11 @@ func UpdatedProject() *ProjectUpdate{
 
 // func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data[]byte, contentType string) 
 
+func GenerateObjectKey(filename string) string {
+    id := uuid.New().String()
+    return fmt.Sprintf("uploads/%s-%s", id, filename)
+}
+
 func GetFilePresignedUrl() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		fmt.Println("get file presigned url")
@@ -95,7 +103,7 @@ func GetFilePresignedUrl() fiber.Handler{
 		presignClient := s3.NewPresignClient(client)
 		urls := []string{}
 		for _, filename:=range req.FileKey{
-			objectKey:="uploads/" + string(filename)
+			objectKey:=GenerateObjectKey(filename)
 			params := &s3.PutObjectInput{
 			Bucket: aws.String(bucketName),
 			Key:    aws.String(objectKey),
@@ -353,7 +361,7 @@ func DeleteProject() fiber.Handler{
 
 func DeleteAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		
+
 		col_id := c.Params("col_id")
 		if col_id==""{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -369,6 +377,52 @@ func DeleteAllProject() fiber.Handler{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Project collection was not deleted successful"})
 		}
 		return c.JSON(result)
+
+	}
+}
+
+func DeleteFile() fiber.Handler{
+	return func(c* fiber.Ctx)error{
+		envs:=env.NewEnv()
+		project_id:=c.Params("project_id")
+		if(project_id==""){
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"project id needed",
+			})
+		}
+		key:=c.Query("key")
+		if key==""{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"key needed",
+			})
+		}
+		fmt.Println("key: ", key)
+		
+		
+		bucket:=envs.S3_BUCKET_NAME
+		err := services.DeleteFromS3(bucket,key)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"failed to delete file",
+			})
+		}
+
+		filter:=bson.M{"id":project_id}
+		update := bson.M{
+			"$pull": bson.M{
+				"fileUpload": key,
+			},
+		}
+		_,err = connect.ProjectCollection.UpdateOne(context.Background(),filter,update)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"failed to update file",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"message":"file deleted successfully",
+		})
 
 	}
 }

@@ -207,3 +207,20 @@ func UpdateCollection() fiber.Handler {
         })
     }
 }
+
+func DeleteAllCollection() fiber.Handler{
+	return func(c* fiber.Ctx)error{
+		user_id,err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":"userId cannot be fetched",
+			})
+		}
+		filter := bson.M{"user_id":user_id}
+		result,err:=connect.ColCollection.DeleteMany(context.TODO(), filter)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Collection was not deleted successful"})
+		}
+		return c.JSON(result)
+	}
+}

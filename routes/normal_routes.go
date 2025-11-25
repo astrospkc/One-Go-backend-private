@@ -26,21 +26,23 @@ func RegisterNormalRoutes(app *fiber.App){
 	col := app.Group("/collection",middleware.FetchUser())
 	col.Post("/", controller.CreateCollection())
 	col.Get("/", controller.GetAllCollection())
+	col.Delete("/deleteAllCollection", controller.DeleteAllCollection())
 	col.Delete("/:id", controller.DeleteCollection())
 	col.Put("/:id", controller.UpdateCollection())
 	col.Get("/:id", controller.GetCollection())
 	
 	// handling normal routings with auth middleware
 	project := app.Group("/project", middleware.FetchUser())
+	project.Post("/presignedUrl", controller.GetFilePresignedUrl())
 	
-	project.Post("/:col_id", controller.CreateProject())
+	project.Post("createProject/:col_id", controller.CreateProject())
 	project.Put("/:projectid", controller.UpdateProject())
 	project.Get("/", controller.GetAllProject())
 	project.Get("/collectionProject/:col_id", controller.GetAllProjectOfCollectionId())
 	project.Get("/readProject/:projectid",controller.FindOneViaPID())
 	project.Delete("/deleteProject/:projectid",controller.DeleteProject())
 	project.Delete("/deleteAllProject/:col_id", controller.DeleteAllProject())
-	project.Post("/presignedUrl", controller.GetFilePresignedUrl())
+
 	// Blog-section
 	blog := app.Group("/blog", middleware.FetchUser())
 

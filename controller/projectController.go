@@ -68,6 +68,7 @@ func UpdatedProject() *ProjectUpdate{
 
 func GetFilePresignedUrl() fiber.Handler{
 	return func(c *fiber.Ctx) error{
+		fmt.Println("get file presigned url")
 		envs:=env.NewEnv()
 		accessKey := envs.AWS_ACCESS_KEY_ID
 		secretKey :=envs.AWS_SECRET_ACCESS_KEY
@@ -89,6 +90,7 @@ func GetFilePresignedUrl() fiber.Handler{
 				"error":"Invalid request body",
 			})
 		}
+		fmt.Println("req: ", req)
 		client := s3.NewFromConfig(cfg)
 		presignClient := s3.NewPresignClient(client)
 		urls := []string{}
@@ -111,6 +113,8 @@ func GetFilePresignedUrl() fiber.Handler{
 		return c.JSON(fiber.Map{"urls": urls})
 	}
 }
+
+
 
 func CreateProject() fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -349,20 +353,20 @@ func DeleteProject() fiber.Handler{
 
 func DeleteAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-		u_id := c.Params("u_id")
-		if u_id==""{
+		
+		col_id := c.Params("col_id")
+		if col_id==""{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"User id needed",
+				"error":"collection id needed",
 			})
 		}
-		uid, err := primitive.ObjectIDFromHex(u_id)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid project ID format",})
-		}
-		filter := bson.M{"user_id":uid}
-		result,err:=connect.ProjectCollection.DeleteMany(context.TODO(), filter)
+		
+		result, err:=connect.ProjectCollection.DeleteMany(context.TODO(), bson.M{"collection_id":col_id})
+	
+		// filter := bson.M{"user_id":uid}
+		// result,err:=connect.ProjectCollection.DeleteMany(context.TODO(), filter)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Project was not deleted successful"})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Project collection was not deleted successful"})
 		}
 		return c.JSON(result)
 

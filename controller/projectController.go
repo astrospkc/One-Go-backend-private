@@ -309,7 +309,7 @@ type ReadProjectResponse struct{
 	Project models.Project `json:"project"`
 	Code int `json:"code"`
 }
-func FindOneViaPID() fiber.Handler{
+func GetProjectByProjectId() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		p_id:= c.Params("projectid")
 		fmt.Println("project id: ", p_id)
@@ -380,20 +380,25 @@ func DeleteAllProject() fiber.Handler{
 
 	}
 }
-
+type DeleteFileResponse struct{
+	Message string `json:"message"`
+	Code	int `json:"code"`
+}
 func DeleteFile() fiber.Handler{
 	return func(c* fiber.Ctx)error{
 		envs:=env.NewEnv()
 		project_id:=c.Params("project_id")
 		if(project_id==""){
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"project id needed",
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteFileResponse{
+				Message:"project id needed",
+				Code: fiber.StatusBadRequest,
 			})
 		}
 		key:=c.Query("key")
 		if key==""{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"key needed",
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteFileResponse{
+				Message:"key needed",
+				Code: fiber.StatusBadRequest,
 			})
 		}
 		fmt.Println("key: ", key)
@@ -402,8 +407,9 @@ func DeleteFile() fiber.Handler{
 		bucket:=envs.S3_BUCKET_NAME
 		err := services.DeleteFromS3(bucket,key)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"failed to delete file",
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteFileResponse{
+				Message:"failed to delete file",
+				Code: fiber.StatusBadRequest,
 			})
 		}
 
@@ -415,13 +421,15 @@ func DeleteFile() fiber.Handler{
 		}
 		_,err = connect.ProjectCollection.UpdateOne(context.Background(),filter,update)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"failed to update file",
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteFileResponse{
+				Message:"failed to delete file",
+				Code: fiber.StatusBadRequest,
 			})
 		}
 
-		return c.JSON(fiber.Map{
-			"message":"file deleted successfully",
+		return c.JSON(DeleteFileResponse{
+			Message:"file deleted successfully",
+			Code: fiber.StatusOK,
 		})
 
 	}

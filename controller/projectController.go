@@ -333,23 +333,34 @@ func GetProjectByProjectId() fiber.Handler{
 		})
 	}
 }
-
+// TODO: delete the files of the project also 
 func DeleteProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
 		// get the project id
+		envs:=env.NewEnv()
 		p_id:= c.Params("projectid")
 		if p_id==""{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"Please provide project id",
 			})
 		}
-		objId, err := primitive.ObjectIDFromHex(p_id)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid project ID format",})
-		}
 
-		filter := bson.M{"id":objId}
-		
+		var project models.Project
+		err := connect.ProjectCollection.FindOne(context.Background(), bson.M{"id": p_id} ).Decode(&project)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error":"Project was not deleted successful"})
+		}
+		files:=project.FileUpload
+		bucketName:=envs.S3_BUCKET_NAME
+		if len(files)>0{
+			for _,file:=range files{
+				err:=services.DeleteFromS3(bucketName,file)
+				if err!=nil{
+					return c.Status(fiber.StatusInternalServerError).JSON("failed to delete file")
+				}
+			}
+		}
+		filter := bson.M{"id":p_id}
 		result, err := connect.ProjectCollection.DeleteOne(context.TODO(),filter)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Project was not deleted successful"})
@@ -361,22 +372,46 @@ func DeleteProject() fiber.Handler{
 
 func DeleteAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
-
+		envs:=env.NewEnv()
 		col_id := c.Params("col_id")
 		if col_id==""{
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":"collection id needed",
 			})
 		}
-		
-		result, err:=connect.ProjectCollection.DeleteMany(context.TODO(), bson.M{"collection_id":col_id})
-	
-		// filter := bson.M{"user_id":uid}
-		// result,err:=connect.ProjectCollection.DeleteMany(context.TODO(), filter)
+		var project models.Project
+		_,err:=connect.ProjectCollection.Find(context.Background(), bson.M{"collection_id":col_id})
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Project collection was not deleted successful"})
+			return c.Status(fiber.StatusInternalServerError).JSON("failed to extract project info")
 		}
-		return c.JSON(result)
+		var files []string
+		files=project.FileUpload
+		bucketName:=envs.S3_BUCKET_NAME
+		if len(files)>0{
+			for _,file:=range files{
+				err:=services.DeleteFromS3(bucketName,file)
+				if err!=nil{
+					return c.Status(fiber.StatusInternalServerError).JSON("failed to delete file")
+				}
+			}
+		}
+
+		projectFilter:=bson.M{"collection_id":col_id}
+		_,err=connect.ProjectCollection.DeleteMany(context.Background(),projectFilter)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON("failed to delete project")
+		}
+
+		collectionFilter:= bson.M{"id":col_id}
+		_,err=connect.ColCollection.DeleteOne(context.Background(),collectionFilter)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON("failed to delete collection")
+		}
+
+		return c.JSON(DeleteCollectionResponse{
+			Message: "Collection deleted successfully",
+			Code: fiber.StatusOK,
+		})
 
 	}
 }

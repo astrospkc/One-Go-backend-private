@@ -115,6 +115,13 @@ func GetAllCollection() fiber.Handler{
 				TotalPages: 0,
 			})
 		}
+
+		var tot_pages int
+		if limit>0{
+		    tot_pages = (int(total) + limit - 1) / limit
+		}else{
+			tot_pages = 0
+		}
 		var collections []models.Collection
 		if err := cursor.All(context.TODO(), &collections); err!=nil{
 			return c.Status(fiber.StatusInternalServerError).JSON(GetAllCollectionResponse{
@@ -123,7 +130,7 @@ func GetAllCollection() fiber.Handler{
 				Page: page,
 				Limit: limit,
 				Total: int(total),
-				TotalPages: (int(total) + limit - 1) / limit,
+				TotalPages: tot_pages,
 			})
 		}
 		// fmt.Println(collections)
@@ -133,7 +140,7 @@ func GetAllCollection() fiber.Handler{
 			Page: page,
 			Limit: limit,
 			Total: int(total),
-			TotalPages: (int(total) + limit - 1) / limit,
+			TotalPages: tot_pages,
 		})
 	}
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"gobackend/connect"
+	"gobackend/env"
 	"gobackend/models"
+	"gobackend/services"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -126,14 +128,37 @@ type DeleteCollectionResponse struct{
 // get the id of the collection
 func DeleteCollection() fiber.Handler{
 	return func(c* fiber.Ctx)error{
+		envs:=env.NewEnv()
 		col_id:=c.Params("id")
-		_,err := connect.ColCollection.DeleteOne(context.Background(), bson.M{"id":col_id})
+		var project models.Project
+		_,err:=connect.ProjectCollection.Find(context.Background(), bson.M{"collection_id":col_id})
 		if err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(DeleteCollectionResponse{
-				Message: "Failed to delete collection",
-				Code: fiber.StatusInternalServerError,
-			})
+			return c.Status(fiber.StatusInternalServerError).JSON("failed to extract project info")
 		}
+		var files []string
+		files=project.FileUpload
+		bucketName:=envs.S3_BUCKET_NAME
+		if len(files)>0{
+			for _,file:=range files{
+				err:=services.DeleteFromS3(bucketName,file)
+				if err!=nil{
+					return c.Status(fiber.StatusInternalServerError).JSON("failed to delete file")
+				}
+			}
+		}
+
+		projectFilter:=bson.M{"collection_id":col_id}
+		_,err=connect.ProjectCollection.DeleteMany(context.Background(),projectFilter)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON("failed to delete project")
+		}
+
+		collectionFilter:= bson.M{"id":col_id}
+		_,err=connect.ColCollection.DeleteOne(context.Background(),collectionFilter)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON("failed to delete collection")
+		}
+
 		return c.JSON(DeleteCollectionResponse{
 			Message: "Collection deleted successfully",
 			Code: fiber.StatusOK,

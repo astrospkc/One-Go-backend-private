@@ -235,17 +235,64 @@ func UpdateCollection() fiber.Handler {
 
 func DeleteAllCollection() fiber.Handler{
 	return func(c* fiber.Ctx)error{
+		envs:=env.NewEnv()
 		user_id,err:= FetchUserId(c)
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":"userId cannot be fetched",
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteCollectionResponse{
+				Message: "failed to fetch user_id",
+				Code: fiber.StatusBadRequest,
 			})
 		}
-		filter := bson.M{"user_id":user_id}
-		result,err:=connect.ColCollection.DeleteMany(context.TODO(), filter)
+		// fetch all the projects of the user
+		var project []models.Project
+		cursor,err:=connect.ProjectCollection.Find(context.Background(), bson.M{"user_id":user_id})
 		if err!=nil{
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"eror":"Collection was not deleted successful"})
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteCollectionResponse{
+				Message: "failed to fetch projects",
+				Code: fiber.StatusBadRequest,
+			})
 		}
-		return c.JSON(result)
+		cursor.All(context.Background(), &project)
+		// files to delete from s3
+		var files []string
+		for _,p:=range project{
+			files = append(files,p.FileUpload...)
+		}
+		bucketName:=envs.S3_BUCKET_NAME
+		if len(files)>0{
+			for _,file:=range files{
+				err:=services.DeleteFromS3(bucketName,file)
+				if err!=nil{
+					return c.Status(fiber.StatusInternalServerError).JSON(DeleteCollectionResponse{
+						Message: "failed to delete file",
+						Code: fiber.StatusInternalServerError,
+					})
+				}
+			}
+		}
+
+		// now delete all the project of the user 
+		projectFilter:= bson.M{"user_id":user_id}
+		_,err=connect.ProjectCollection.DeleteMany(context.Background(),projectFilter)
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(DeleteCollectionResponse{
+				Message: "failed to delelte projects",
+				Code: fiber.StatusInternalServerError,
+			})
+		}
+
+		// delete all the collections of the user
+		filter := bson.M{"user_id":user_id}
+		_,err=connect.ColCollection.DeleteMany(context.TODO(), filter)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON(DeleteCollectionResponse{
+				Message: "failed to delete collections",
+				Code: fiber.StatusBadRequest,
+			})
+		}
+		return c.JSON(DeleteCollectionResponse{
+			Message: "collections deleted successfully",
+			Code: fiber.StatusOK,
+		})
 	}
 }

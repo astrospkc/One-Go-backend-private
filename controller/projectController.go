@@ -216,10 +216,21 @@ func GetAllProject() fiber.Handler{
 				TotalPages: 0,
 			})
 		}
+		total,err := connect.ProjectCollection.CountDocuments(context.TODO(), bson.M{"user_id":user_id})
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(GetAllProjectResponse{
+				Projects: nil,
+				Code: fiber.StatusInternalServerError,
+				Page: page,
+				Limit: limit,
+				Total: 0,
+				TotalPages: 0,
+			})
+		}
 		var projects []models.Project
 		var tot_pages int
 		if limit>0{
-		    tot_pages = (len(projects) + limit - 1) / limit
+		    tot_pages = (int(total) + limit - 1) / limit
 		}else{
 			tot_pages = 0
 		}
@@ -229,7 +240,7 @@ func GetAllProject() fiber.Handler{
 				Code: fiber.StatusInternalServerError,
 				Page: page,
 				Limit: limit,
-				Total: len(projects),
+				Total: int(total),
 				TotalPages: tot_pages,
 			})
 		}
@@ -238,7 +249,7 @@ func GetAllProject() fiber.Handler{
 			Code: fiber.StatusOK,
 			Page: page,
 			Limit: limit,
-			Total: len(projects),
+			Total: int(total),
 			TotalPages:tot_pages,
 		})
 
@@ -248,32 +259,62 @@ func GetAllProject() fiber.Handler{
 type GetAllProjectOfCollectionIdResponse struct{
 	Projects []models.Project `json:"projects"`
 	Code int `json:"code"`
+	Page int `json:"page"`
+	Limit int `json:"limit"`
+	Total int `json:"total"`
+	TotalPages int `json:"total_pages"`
 }
 func GetAllProjectOfCollectionId() fiber.Handler{
 	return func(c *fiber.Ctx) error {
 		col_id := c.Params("col_id")
-		// var project_info models.Project
-		cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"collection_id":col_id})
 
+		page,_:=strconv.Atoi(c.Query("page"))
+		limit,_:=strconv.Atoi(c.Query("limit"))
+
+		opts:=options.Find().SetSkip(int64((page-1)*limit)).SetLimit(int64(limit)).SetSort(bson.D{{"created_at", -1}})
+		// var project_info models.Project
+		cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"collection_id":col_id},opts)
 		// cursor,err := connect.ProjectCollection.Find(context.TODO(), bson.M{"email":email})
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(GetAllProjectOfCollectionIdResponse{
 				Projects: nil,
 				Code: fiber.StatusBadRequest,
+				Page: page,
+				Limit: limit,
+				Total: 0,
+				TotalPages: 0,
 			})
 		}
-		
+		total,err := connect.ProjectCollection.CountDocuments(context.TODO(), bson.M{"collection_id":col_id})
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(GetAllProjectOfCollectionIdResponse{
+				Projects: nil,
+				Code: fiber.StatusInternalServerError,
+				Page: page,
+				Limit: limit,
+				Total: 0,
+				TotalPages: 0,
+			})
+		}
 		var projects []models.Project
 		if err := cursor.All(context.TODO(), &projects); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(GetAllProjectOfCollectionIdResponse{
 				Projects: nil,
 				Code: fiber.StatusInternalServerError,
+				Page: page,
+				Limit: limit,
+				Total: int(total),
+				TotalPages: (int(total) + limit - 1) / limit,
 			})
 		}
 		// fmt.Println(projects)
 		return c.JSON(GetAllProjectOfCollectionIdResponse{
 			Projects: projects,
 			Code: fiber.StatusOK,
+			Page: page,
+			Limit: limit,
+			Total: int(total),
+			TotalPages: (int(total) + limit - 1) / limit,
 		})
 	}
 }

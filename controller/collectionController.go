@@ -7,6 +7,7 @@ import (
 	"gobackend/env"
 	"gobackend/models"
 	"gobackend/services"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -66,6 +67,10 @@ func CreateCollection() fiber.Handler{
 type GetAllCollectionResponse struct{
 	Collections []models.Collection `json:"collections"`
 	Code int `json:"code"`
+	Page int `json:"page"`
+	Limit int `json:"limit"`
+	Total int `json:"total"`
+	TotalPages int `json:"total_pages"`
 } 
 func GetAllCollection() fiber.Handler{
 	return func(c *fiber.Ctx) error{
@@ -77,11 +82,37 @@ func GetAllCollection() fiber.Handler{
 				Code: fiber.StatusBadRequest,
 			})
 		}
-		cursor, err := connect.ColCollection.Find(context.TODO(), bson.M{"user_id":user_id})
+
+		page,_:=strconv.Atoi(c.Query("page"))
+		limit,_:=strconv.Atoi(c.Query("limit"))
+		
+		opts:=options.Find().
+		SetSkip(int64((page-1)*limit)).
+		SetLimit(int64(limit)).
+		SetSort(bson.D{{"created_at",-1}})
+
+		cursor, err := connect.ColCollection.Find(context.TODO(), bson.M{"user_id":user_id},opts)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(GetAllCollectionResponse{
 				Collections: nil,
 				Code: fiber.StatusBadRequest,
+				Page: page,
+				Limit: limit,
+				Total: 0,
+				TotalPages: 0,
+			})
+		}
+		
+	
+		total, err := connect.ColCollection.CountDocuments(context.TODO(), bson.M{"user_id":user_id})
+		if err!=nil{
+			return c.Status(fiber.StatusInternalServerError).JSON(GetAllCollectionResponse{
+				Collections: nil,
+				Code: fiber.StatusInternalServerError,
+				Page: page,
+				Limit: limit,
+				Total: 0,
+				TotalPages: 0,
 			})
 		}
 		var collections []models.Collection
@@ -89,12 +120,20 @@ func GetAllCollection() fiber.Handler{
 			return c.Status(fiber.StatusInternalServerError).JSON(GetAllCollectionResponse{
 				Collections: nil,
 				Code: fiber.StatusInternalServerError,
+				Page: page,
+				Limit: limit,
+				Total: int(total),
+				TotalPages: (int(total) + limit - 1) / limit,
 			})
 		}
 		// fmt.Println(collections)
 		return c.JSON(GetAllCollectionResponse{
 			Collections: collections,
 			Code: fiber.StatusOK,
+			Page: page,
+			Limit: limit,
+			Total: int(total),
+			TotalPages: (int(total) + limit - 1) / limit,
 		})
 	}
 }

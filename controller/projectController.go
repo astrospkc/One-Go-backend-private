@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"gobackend/connect"
@@ -175,6 +176,10 @@ func CreateProject() fiber.Handler {
 type GetAllProjectResponse struct{
 	Projects []models.Project `json:"projects"`
 	Code int `json:"code"`
+	Page int `json:"page"`
+	Limit int `json:"limit"`
+	Total int `json:"total"`
+	TotalPages int `json:"total_pages"`
 }
 func GetAllProject() fiber.Handler{
 	return func(c *fiber.Ctx) error{
@@ -184,29 +189,57 @@ func GetAllProject() fiber.Handler{
 			return c.Status(fiber.StatusBadRequest).JSON(GetAllProjectResponse{
 				Projects: nil,
 				Code: fiber.StatusBadRequest,
+				Page: 0,
+				Limit: 0,
+				Total: 0,
+				TotalPages: 0,
 			})
 		}
 
 		fmt.Print("user id: ", user_id)
+		page,_:=strconv.Atoi(c.Query("page"))
+		limit,_:=strconv.Atoi(c.Query("limit"))
+
+		opts:=options.Find().
+			SetLimit(int64(limit)).
+			SetSkip(int64((page-1)*limit)).
+			SetSort(bson.D{{"created_at", -1}})
 	
-	
-		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":user_id})
+		cursor, err := connect.ProjectCollection.Find(context.TODO(), bson.M{"user_id":user_id},opts)
 		if err!=nil{
 			return c.Status(fiber.StatusBadRequest).JSON(GetAllProjectResponse{
 				Projects: nil,
 				Code: fiber.StatusBadRequest,
+				Page: page,
+				Limit: limit,
+				Total: 0,
+				TotalPages: 0,
 			})
 		}
 		var projects []models.Project
+		var tot_pages int
+		if limit>0{
+		    tot_pages = (len(projects) + limit - 1) / limit
+		}else{
+			tot_pages = 0
+		}
 		if err := cursor.All(context.TODO(), &projects); err!=nil{
 			return c.Status(fiber.StatusInternalServerError).JSON(GetAllProjectResponse{
 				Projects: nil,
 				Code: fiber.StatusInternalServerError,
+				Page: page,
+				Limit: limit,
+				Total: len(projects),
+				TotalPages: tot_pages,
 			})
 		}
 		return c.JSON(GetAllProjectResponse{
 			Projects: projects,
 			Code: fiber.StatusOK,
+			Page: page,
+			Limit: limit,
+			Total: len(projects),
+			TotalPages:tot_pages,
 		})
 
 	}

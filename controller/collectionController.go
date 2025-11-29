@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -24,6 +25,11 @@ type Collection struct{
 	TotalProject int64 `bson:"total_project" json:"total_project"`
 	CreatedAt	time.Time	`bson:"created_at" json:"created_at"`
 	UpdatedAt	time.Time	`bson:"updated_at" json:"updated_at"`
+}
+
+type CollectionWithProjectsData struct{
+	models.Collection `bson:",inline" json:"collection"`
+	Projects []models.Project `json:"projects"`
 }
 
 func CreateCollection() fiber.Handler{
@@ -340,5 +346,61 @@ func DeleteAllCollection() fiber.Handler{
 			Message: "collections deleted successfully",
 			Code: fiber.StatusOK,
 		})
+	}
+}
+
+func FetchAllCollectionWithProjects() fiber.Handler{
+	return func(c* fiber.Ctx) error{
+		user_id, err:= FetchUserId(c)
+		if err!=nil{
+			return c.Status(fiber.StatusBadRequest).JSON("failed to fetch user_id")
+		}
+		// join collection and project
+		var colData []models.Collection
+
+
+		cursor, err := connect.ColCollection.Find(
+			context.Background(),
+			bson.M{"user_id": user_id},
+		)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Failed to find collections"})
+		}
+
+		if err := cursor.All(context.Background(), &colData); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Decode error"})
+		}
+
+		var result []CollectionWithProjectsData
+		for _, col := range colData {
+			pipeline := mongo.Pipeline{
+				bson.D{
+					{Key: "$match", Value: bson.D{
+						{Key: "id", Value: col.Id},
+					}},
+				},
+				bson.D{
+					{Key: "$lookup", Value: bson.D{
+						{Key: "from", Value: "projects"},
+						{Key: "localField", Value: "id"},
+						{Key: "foreignField", Value: "collection_id"},
+						{Key: "as", Value: "projects"},
+					}},
+				},
+			}
+			cur, err := connect.ColCollection.Aggregate(context.Background(), pipeline)
+			if err != nil {
+				continue
+			}
+
+			var tmp []CollectionWithProjectsData
+			if err := cur.All(context.Background(), &tmp); err == nil && len(tmp) > 0 {
+				result = append(result, tmp[0])
+			}
+		}
+
+	return c.JSON(result)
+
+
 	}
 }

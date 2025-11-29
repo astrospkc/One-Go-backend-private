@@ -24,6 +24,8 @@ func RegisterNormalRoutes(app *fiber.App){
 
 	// handling collections routes
 	col := app.Group("/collection",middleware.FetchUser())
+	col.Get("/with-projects", controller.FetchAllCollectionWithProjects())
+
 	col.Post("/", controller.CreateCollection())
 	col.Get("/", controller.GetAllCollection())
 	col.Delete("/deleteAllCollection", controller.DeleteAllCollection())

@@ -401,6 +401,5 @@ func FetchAllCollectionWithProjects() fiber.Handler{
 
 	return c.JSON(result)
 
-
 	}
 }

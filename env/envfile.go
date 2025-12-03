@@ -18,6 +18,8 @@ type ENV struct{
 	AIVEN_PASSWORD				string `mapstructure:"AIVEN_PASSWORD"`
 	AIVEN_HOST					string `mapstructure:"AIVEN_HOST"`
 	AIVEN_PORT					int `mapstructure:"AIVEN_PORT"`
+	RAZORPAY_KEY_ID				string `mapstructure:"RAZORPAY_KEY_ID"`
+	RAZORPAY_KEY_SECRET			string `mapstructure:"RAZORPAY_KEY_SECRET"`
 }
 
 func NewEnv() *ENV {

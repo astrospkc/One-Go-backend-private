@@ -1,8 +1,10 @@
 package routes
 
 import (
+	"gobackend/config"
 	"gobackend/controller"
 	"gobackend/middleware"
+	"gobackend/services/payment"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -73,4 +75,14 @@ func RegisterNormalRoutes(app *fiber.App){
 	media.Get("/getALlMediaFiles/:col_id", controller.GetAllMediaFiles())
 	media.Post("/showMediaFiles/:col_id",controller.ShowFile())
 	media.Delete("/deleteMedia/:media_id", controller.DeleteFile())
+
+
+
+	// payment routes
+
+	cfg:=config.LoadConfig()
+	paymentGroup := app.Group("/payment")
+	paymentGroup.Post("/createOrder", controller.CreateOrder(cfg))
+	paymentGroup.Get("/showCheckoutPage", payment.ShowCheckoutPage(cfg))
+	// paymentGroup.Post("/payment-callback", controller.PaymentCallback(cfg))
 }

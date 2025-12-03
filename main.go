@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"gobackend/config"
 	"gobackend/connect"
 	"gobackend/routes"
 
@@ -10,9 +11,10 @@ import (
 )
 
 // https://one-go-private.vercel.app
-
+var Cfg *config.Config
 func main() {
 	app := fiber.New()
+	Cfg=config.LoadConfig()
 
 	app.Use(cors.New(cors.Config{
     AllowOrigins:     "http://localhost:3000, https://one-go-private.vercel.app",

@@ -17,7 +17,6 @@ type User struct {
 	APIkey		string  `bson:"api_key" json:"api_key"`
 	OTP         string		`bson:"otp,omitempty" json:"otp"`
 	OTPVerification string `bson:"otpVerification,omitempty" json:"otpVerification"`
-	
 }
 
 type Collection struct{
@@ -129,4 +128,51 @@ type APIkey struct{
 	CreatedAt	time.Time	`bson:"createdat" json:"createdat"`
 	Revoked		bool	`bson:"revoked" json:"revoked"`
 	
+}
+
+type Subscription struct {
+    ID                string     `bson:"_id,omitempty" json:"id"`
+    UserID            string     `bson:"user_id" json:"user_id"`
+    Plan              string     `bson:"plan" json:"plan"` // free, basic, pro...
+    Status            string     `bson:"status" json:"status"` // active/canceled/expired
+    StartAt           time.Time  `bson:"start_at" json:"start_at"`
+    EndAt             time.Time  `bson:"end_at" json:"end_at"`
+    AutoRenew         bool       `bson:"auto_renew" json:"auto_renew"`
+    TrialEndsAt       time.Time  `bson:"trial_ends_at,omitempty" json:"trial_ends_at"`
+    UpdatedAt         time.Time  `bson:"updated_at" json:"updated_at"`
+}
+// Tracks storage & API usage for billing limits
+type Usage struct {
+    ID               string    `bson:"_id,omitempty" json:"id"`
+    UserID           string    `bson:"user_id" json:"user_id"`
+    StorageUsed      int64     `bson:"storage_used" json:"storage_used"`
+    StorageLimit     int64     `bson:"storage_limit" json:"storage_limit"`
+    APIRequestsCount int64     `bson:"api_requests_count" json:"api_requests_count"`
+    APIRequestsLimit int64     `bson:"api_requests_limit" json:"api_requests_limit"`
+    UpdatedAt        time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+// Plan feature toggles
+type FeatureAccess struct {
+    ID                 string `bson:"_id,omitempty" json:"id"`
+    UserID             string `bson:"user_id" json:"user_id"`
+    ProjectsLimit      int    `bson:"projects_limit" json:"projects_limit"`
+    TeamMembersAllowed int    `bson:"team_members_allowed" json:"team_members_allowed"`
+    CustomDomain       bool   `bson:"custom_domain" json:"custom_domain"`
+    AnalyticsEnabled   bool   `bson:"analytics_enabled" json:"analytics_enabled"`
+    PrioritySupport    bool   `bson:"priority_support" json:"priority_support"`
+    UpdatedAt          time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+type Plan struct {
+    ID                 string `bson:"_id,omitempty"`
+    Name               string `bson:"name"`
+    StorageLimit       int64  `bson:"storage_limit"`
+    APIRequestsLimit   int64  `bson:"api_requests_limit"`
+    ProjectsLimit      int    `bson:"projects_limit"`
+    TeamMembersAllowed int    `bson:"team_members_allowed"`
+    CustomDomain       bool   `bson:"custom_domain"`
+    AnalyticsEnabled   bool   `bson:"analytics_enabled"`
+    PrioritySupport    bool   `bson:"priority_support"`
+    PriceMonthly       int64  `bson:"price_monthly"` // INR
 }

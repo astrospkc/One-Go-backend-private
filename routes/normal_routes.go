@@ -78,11 +78,13 @@ func RegisterNormalRoutes(app *fiber.App){
 
 
 
-	// payment routes
+	// payment routes should also be implemented in api_routes(but in different way then this )
 
 	cfg:=config.LoadConfig()
-	paymentGroup := app.Group("/payment")
+	paymentGroup := app.Group("/payment", middleware.FetchUser())
 	paymentGroup.Post("/createOrder", controller.CreateOrder(cfg))
 	paymentGroup.Get("/showCheckoutPage", payment.ShowCheckoutPage(cfg))
+	paymentGroup.Post("/subscription/createPaymentLink", controller.CreatePaymentLink())
+
 	// paymentGroup.Post("/payment-callback", controller.PaymentCallback(cfg))
 }

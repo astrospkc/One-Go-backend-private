@@ -133,7 +133,7 @@ type APIkey struct{
 type Subscription struct {
     ID                string     `bson:"_id,omitempty" json:"id"`
     UserID            string     `bson:"user_id" json:"user_id"`
-    Plan              string     `bson:"plan" json:"plan"` // free, basic, pro...
+    Plan              string     `bson:"plan" json:"plan"` // free, pro,team...
     Status            string     `bson:"status" json:"status"` // active/canceled/expired
     StartAt           time.Time  `bson:"start_at" json:"start_at"`
     EndAt             time.Time  `bson:"end_at" json:"end_at"`

@@ -15,6 +15,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	razorpay "github.com/razorpay/razorpay-go"
+	"github.com/razorpay/razorpay-go/utils"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -87,7 +88,7 @@ func CreatePaymentLink() fiber.Handler{
             "sms": true,
             "email": true,
         },
-        "callback_url": "http://localhost:3000/subscription/success",//change the domain later
+        "callback_url": "http://localhost:3000/payment/subscription/success",//change the domain later
         "callback_method": "get",
     }
 	payloadBytes,_:=json.Marshal(payload)
@@ -115,5 +116,37 @@ func CreatePaymentLink() fiber.Handler{
 	}
 }
 
+// razorpay_payment_id=pay_RpA339YQ8jrMIk&
+// razorpay_payment_link_id=plink_RpA2eytvDXpT4j&
+// razorpay_payment_link_reference_id=&razorpay_payment_link_status=paid&
+// razorpay_signature=9323c77f4e18b8fd41d7c25fa37db7c10bdf80120429ec979cbed841d602d918
 
-func 
+
+func SubscriptionSuccess() fiber.Handler{
+	return func(c *fiber.Ctx) error{
+		envs:=env.NewEnv()
+		params := map[string]interface{} {
+		"payment_link_id": "plink_RpA2eytvDXpT4j",
+		"razorpay_payment_id": "pay_RpA339YQ8jrMIk",
+		"payment_link_reference_id": "",
+		"payment_link_status": "paid",
+		}
+		signature := "9323c77f4e18b8fd41d7c25fa37db7c10bdf80120429ec979cbed841d602d918";
+		secret := envs.RAZORPAY_KEY_SECRET;
+		
+
+		if utils.VerifyPaymentLinkSignature(params, signature, secret) {
+		return c.JSON(fiber.Map{
+			"message": "Payment verified",
+			"success": true,
+		})
+		}
+
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Invalid signature",
+			"success": false,
+		})
+		
+	}
+}
+

@@ -404,6 +404,28 @@ func RegisterVerifyOTP() fiber.Handler{
 			APIkey:     user.APIkey,
 		}
 
+
+		// updating subscription field
+		subscription:=models.Subscription{
+			UserID: user.Id,
+			Plan: "free",
+			Status: "active",
+			StartAt: time.Now(),
+			EndAt: time.Now().Add(90 * 24 * time.Hour), // 3 months
+			TrialEndsAt: time.Now().Add(90 * 24 * time.Hour), // 3 months
+			AutoRenew: false,
+		}
+
+		_,err=connect.SubscriptionCollection.InsertOne(context.TODO(), subscription)
+		if err!=nil{
+			return c.Status(fiber.ErrBadRequest.Code).JSON(RegisterVerifyOTPResponse{
+				Message: "failed to insert free subscription",
+				Token: "",
+				User: models.User{},
+				Code: fiber.ErrBadRequest.Code,
+			})
+		}
+
 		
 
 		return c.Status(fiber.StatusOK).JSON(RegisterVerifyOTPResponse{

@@ -85,6 +85,7 @@ func RegisterNormalRoutes(app *fiber.App){
 	paymentGroup.Post("/createOrder", controller.CreateOrder(cfg))
 	paymentGroup.Get("/showCheckoutPage", payment.ShowCheckoutPage(cfg))
 	paymentGroup.Post("/subscription/createPaymentLink", controller.CreatePaymentLink())
+	paymentGroup.Get("/subscription/success", controller.SubscriptionSuccess())
 
 	// paymentGroup.Post("/payment-callback", controller.PaymentCallback(cfg))
 }

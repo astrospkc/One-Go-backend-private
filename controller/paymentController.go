@@ -60,6 +60,7 @@ func CreateOrder(cfg *config.Config) fiber.Handler {
 
 func CreatePaymentLink() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		fmt.Println("CreatePaymentLink")
 		envs := env.NewEnv()
 		var body struct {
 			Plan string `json:"plan"`

@@ -248,26 +248,4 @@ func ActivateSubscription() fiber.Handler {
 	}
 }
 
-func MarkSubscriptionFailed() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"success": true,
-		})
-	}
-}
-
-func UpdateAutoRenew() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"success": true,
-		})
-	}
-}
-
-func GetActiveSubscription() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"success": true,
-		})
-	}
-}
+// Mark Subsc

@@ -58,9 +58,61 @@ func CreateOrder(cfg *config.Config) fiber.Handler {
 	}
 }
 
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+func isUpdateSubscription(user_id string, plan string, sub models.Subscription) bool {
+
+	if sub.Status == "active" && sub.EndAt.After(time.Now().UTC()) {
+		// update subscription
+		filter := bson.M{"user_id": user_id}
+
+		now := time.Now().UTC()
+
+		startTime := maxTime(sub.EndAt.Add(24*time.Hour), now.Add(24*time.Hour))
+		endTime := startTime.Add(30 * 24 * time.Hour)
+
+		update := bson.M{
+			"$set": bson.M{
+				"start_at": startTime,
+				"end_at":   endTime,
+				"status":   "active",
+			},
+		}
+		_, err := connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, update)
+		if err != nil {
+			return false
+		}
+	}
+	return true
+
+}
+
+var Sub models.Subscription
+
+func anyActiveSubscriptionProOrCreator(user_id string) bool {
+	filter := bson.D{{"user_id", user_id}}
+	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&Sub)
+	if err != nil {
+		fmt.Println("Failed to fetch subscription, user may not have any subscription")
+		return false
+	}
+	return true
+}
+
 func CreatePaymentLink() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		fmt.Println("CreatePaymentLink")
+		user_id, err := FetchUserId(c)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch user id",
+			})
+		}
 		envs := env.NewEnv()
 		var body struct {
 			Plan string `json:"plan"`
@@ -70,6 +122,46 @@ func CreatePaymentLink() fiber.Handler {
 				"error": "Invalid request body",
 			})
 		}
+
+		if anyActiveSubscriptionProOrCreator(user_id) {
+			if Sub.Plan == body.Plan && Sub.Status == "active" && Sub.EndAt.After(time.Now().UTC()) {
+				fmt.Println("User already has an active subscription")
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "User already has an active subscription",
+				})
+			} else {
+				isPlanChanged := Sub.Plan != body.Plan
+				if isPlanChanged {
+					// update subscription
+					if !isUpdateSubscription(user_id, body.Plan, Sub) {
+						return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+							"error": "Failed to update subscription",
+						})
+					} else {
+						fmt.Println("Subscription updated successfully")
+					}
+				}
+			}
+		} else {
+			subscription := models.Subscription{
+				UserID:      user_id,
+				Plan:        body.Plan,
+				Status:      "pending",
+				StartAt:     time.Now().UTC(),
+				EndAt:       time.Now().UTC().Add(time.Hour * 24 * 30),
+				AutoRenew:   false,
+				TrialEndsAt: time.Now().UTC().Add(time.Hour * 24 * 30),
+				UpdatedAt:   time.Now().UTC(),
+			}
+
+			_, err = connect.SubscriptionCollection.InsertOne(context.TODO(), subscription)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to create subscription",
+				})
+			}
+		}
+
 		priceMap := map[string]int64{
 			"starter": 0,
 			"creator": 99 * 100,
@@ -122,8 +214,20 @@ func CreatePaymentLink() fiber.Handler {
 // razorpay_payment_link_reference_id=&razorpay_payment_link_status=paid&
 // razorpay_signature=9323c77f4e18b8fd41d7c25fa37db7c10bdf80120429ec979cbed841d602d918
 
+// if payment is verified , then update subscription status.
+type SubscriptionSucessResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 func SubscriptionSuccess() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		user_id, err := FetchUserId(c)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch user id",
+			})
+		}
 		envs := env.NewEnv()
 		queries := c.Queries()
 
@@ -137,16 +241,24 @@ func SubscriptionSuccess() fiber.Handler {
 		signature := queries["razorpay_signature"]
 		secret := envs.RAZORPAY_KEY_SECRET
 
+		// update subscription status pending to active
 		if utils.VerifyPaymentLinkSignature(params, signature, secret) {
-			return c.JSON(fiber.Map{
-				"message": "Payment verified",
-				"success": true,
+			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), bson.D{{"user_id", user_id}}, bson.D{{"$set", bson.D{{"status", "active"}}}})
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
+					Success: false,
+					Message: "Failed to update subscription status",
+				})
+			}
+			return c.Status(fiber.StatusOK).JSON(SubscriptionSucessResponse{
+				Success: true,
+				Message: "Subscription updated successfully",
 			})
 		}
 
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "Invalid signature",
-			"success": false,
+		return c.Status(fiber.StatusUnauthorized).JSON(SubscriptionSucessResponse{
+			Success: false,
+			Message: "Invalid signature",
 		})
 
 	}

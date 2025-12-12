@@ -400,7 +400,7 @@ func RegisterVerifyOTP() fiber.Handler {
 
 		// updating subscription field
 		subscription := models.Subscription{
-			UserID:      user.Id,
+			UserId:      user.Id,
 			Plan:        "free",
 			Status:      "active",
 			StartAt:     time.Now(),

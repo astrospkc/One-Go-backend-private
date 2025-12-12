@@ -19,6 +19,7 @@ import (
 	razorpay "github.com/razorpay/razorpay-go"
 	"github.com/razorpay/razorpay-go/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -144,7 +145,7 @@ func CreatePaymentLink() fiber.Handler {
 			}
 		} else {
 			subscription := models.Subscription{
-				UserID:      user_id,
+				UserId:      user_id,
 				Plan:        body.Plan,
 				Status:      "pending",
 				StartAt:     time.Now().UTC(),
@@ -230,8 +231,6 @@ func SubscriptionSuccess() fiber.Handler {
 		}
 		envs := env.NewEnv()
 		queries := c.Queries()
-
-		fmt.Println("queries: ", queries)
 		params := map[string]interface{}{
 			"payment_link_id":           queries["razorpay_payment_link_id"],
 			"razorpay_payment_id":       queries["razorpay_payment_id"],
@@ -293,7 +292,7 @@ func CreatePendingSubscription() fiber.Handler {
 			})
 		}
 		subscription := models.Subscription{
-			UserID:      user_id,
+			UserId:      user_id,
 			Plan:        body.Plan,
 			Status:      status,
 			StartAt:     now,
@@ -377,10 +376,53 @@ func UpdateAutoRenew() fiber.Handler {
 	}
 }
 
+type GetActiveSubscriptionResponse struct {
+	Plan   string              `json:"plan"`
+	Status bool                `json:"status"`
+	Data   models.Subscription `json:"data"`
+}
+
 func GetActiveSubscription() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"success": true,
+		user_id, err := FetchUserId(c)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to fetch user id",
+			})
+		}
+
+		filter := bson.D{
+			{Key: "user_id", Value: user_id},
+		}
+
+		fmt.Println("GetActiveSubscription: Searching for user_id:", user_id)
+		var subscription models.Subscription
+		err = connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&subscription)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				fmt.Println("GetActiveSubscription: No subscription found for user_id:", user_id)
+				return c.Status(fiber.StatusOK).JSON(GetActiveSubscriptionResponse{
+					Plan:   "free", // Or handle as no plan
+					Status: false,
+					Data:   models.Subscription{},
+				})
+			}
+			fmt.Println("GetActiveSubscription: Error fetching subscription:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": fmt.Sprintf("Failed to fetch subscription details: %v", err),
+			})
+		}
+		if subscription.Status == "active" {
+			return c.Status(fiber.StatusOK).JSON(GetActiveSubscriptionResponse{
+				Plan:   subscription.Plan,
+				Status: true,
+				Data:   subscription,
+			})
+		}
+		return c.Status(fiber.StatusOK).JSON(GetActiveSubscriptionResponse{
+			Plan:   subscription.Plan,
+			Status: false,
+			Data:   subscription,
 		})
 	}
 }

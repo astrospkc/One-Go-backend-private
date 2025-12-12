@@ -377,8 +377,9 @@ func UpdateAutoRenew() fiber.Handler {
 }
 
 type GetActiveSubscriptionResponse struct {
-	Plan   string `json:"plan"`
-	Status bool   `json:"status"`
+	Plan   string              `json:"plan"`
+	Status bool                `json:"status"`
+	Data   models.Subscription `json:"data"`
 }
 
 func GetActiveSubscription() fiber.Handler {
@@ -403,6 +404,7 @@ func GetActiveSubscription() fiber.Handler {
 				return c.Status(fiber.StatusOK).JSON(GetActiveSubscriptionResponse{
 					Plan:   "free", // Or handle as no plan
 					Status: false,
+					Data:   models.Subscription{},
 				})
 			}
 			fmt.Println("GetActiveSubscription: Error fetching subscription:", err)
@@ -414,11 +416,13 @@ func GetActiveSubscription() fiber.Handler {
 			return c.Status(fiber.StatusOK).JSON(GetActiveSubscriptionResponse{
 				Plan:   subscription.Plan,
 				Status: true,
+				Data:   subscription,
 			})
 		}
 		return c.Status(fiber.StatusOK).JSON(GetActiveSubscriptionResponse{
 			Plan:   subscription.Plan,
 			Status: false,
+			Data:   subscription,
 		})
 	}
 }

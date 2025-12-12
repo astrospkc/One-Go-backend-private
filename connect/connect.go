@@ -14,39 +14,37 @@ import (
 )
 
 const (
-	dbName  = "CMS_portfolio"
-	colCollection = "collections"
-	colNameUsers = "users"
-	colNameProjects = "projects"
-	colNameBlogs = "blogs"
-	colNameLinks = "links"
-	colNameMedia = "media"
+	dbName              = "CMS_portfolio"
+	colCollection       = "collections"
+	colNameUsers        = "users"
+	colNameProjects     = "projects"
+	colNameBlogs        = "blogs"
+	colNameLinks        = "links"
+	colNameMedia        = "media"
 	colNameSubscription = "subscription"
-	colNameAPI  = "apikey"
+	colNameAPI          = "apikey"
 )
 
 var UsersCollection *mongo.Collection
-var ColCollection    *mongo.Collection
+var ColCollection *mongo.Collection
 var ProjectCollection *mongo.Collection
 var BlogsCollection *mongo.Collection
 var LinksCollection *mongo.Collection
 var MediaCollection *mongo.Collection
 var SubscriptionCollection *mongo.Collection
-
 var APIKeyCollection *mongo.Collection
 
-
-func Connect(){
+func Connect() {
 	envs := env.NewEnv()
-	var uri string 
-	uri =envs.MONGODB_URI
-	
+	var uri string
+	uri = envs.MONGODB_URI
+
 	if uri = envs.MONGODB_URI; uri == "" {
 		log.Fatal("You must set your 'MONGODB_URI' environment variable. See\n\t https://docs.mongodb.com/drivers/go/current/usage-examples/")
 	}
 
 	// Use the SetServerAPIOptions() method to set the Stable API version to 1
-	ctx, cancel:= context.WithTimeout(context.TODO(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancel()
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
@@ -65,48 +63,48 @@ func Connect(){
 	// 		return
 	// 	}
 	// }()
-	
+
 	err = client.Ping(ctx, nil)
-	
-	if err != nil{
+
+	if err != nil {
 		log.Fatal("ping :", err)
 		return
 	}
 	UsersCollection = client.Database(dbName).Collection(colNameUsers)
-	indexModel:=mongo.IndexModel{
-		Keys:bson.D{{Key:"email", Value:  -1}},
-		Options:options.Index().SetUnique(true),
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: -1}},
+		Options: options.Index().SetUnique(true),
 	}
-	_, err =UsersCollection.Indexes().CreateOne(context.TODO(), indexModel)
-	if err != nil{
-		
+	_, err = UsersCollection.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+
 		log.Fatal("error occured while connecting to users collection : ", err)
 	}
-	
-	ColCollection  = client.Database(dbName).Collection(colCollection)
-	indexModel =mongo.IndexModel{
+
+	ColCollection = client.Database(dbName).Collection(colCollection)
+	indexModel = mongo.IndexModel{
 		Keys: bson.D{
-			{Key:"user_id",Value:1},
-			{Key:"title", Value: 1},
+			{Key: "user_id", Value: 1},
+			{Key: "title", Value: 1},
 		},
-		Options:options.Index().SetUnique(true),
+		Options: options.Index().SetUnique(true),
 	}
-	_, err = ColCollection.Indexes().CreateOne(context.TODO(),indexModel)
-	if err!=nil{
+	_, err = ColCollection.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
 		log.Fatal("error occurred while connecting to collection collection: ", err)
 	}
 
 	ProjectCollection = client.Database(dbName).Collection(colNameProjects)
-	indexModel =mongo.IndexModel{
+	indexModel = mongo.IndexModel{
 		Keys: bson.D{
-			
-			{Key:"user_id",Value:1},
-			{Key:"title", Value: 1},
+
+			{Key: "user_id", Value: 1},
+			{Key: "title", Value: 1},
 		},
-		Options:options.Index().SetUnique(true),
+		Options: options.Index().SetUnique(true),
 	}
-	_, err = ProjectCollection.Indexes().CreateOne(context.TODO(),indexModel)
-	if err!=nil{
+	_, err = ProjectCollection.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
 		log.Fatal("error occurred while connecting to project collection: ", err)
 	}
 	BlogsCollection = client.Database(dbName).Collection(colNameBlogs)
@@ -115,21 +113,20 @@ func Connect(){
 	APIKeyCollection = client.Database(dbName).Collection(colNameAPI)
 	SubscriptionCollection = client.Database(dbName).Collection(colNameSubscription)
 
-	db_collection := []*mongo.Collection{ProjectCollection,BlogsCollection,LinksCollection,APIKeyCollection,ColCollection,UsersCollection,MediaCollection,SubscriptionCollection}
+	db_collection := []*mongo.Collection{ProjectCollection, BlogsCollection, LinksCollection, APIKeyCollection, ColCollection, UsersCollection, MediaCollection, SubscriptionCollection}
 	im := mongo.IndexModel{
-		Keys:bson.D{
-			{Key:"id", Value: -1},
+		Keys: bson.D{
+			{Key: "id", Value: -1},
 		},
 	}
 
 	for _, val := range db_collection {
 		_, err = val.Indexes().CreateOne(context.TODO(), im)
-		if err!=nil{
+		if err != nil {
 			log.Fatal("error occurred while connecting to index: ", err)
 		}
 	}
 
-
 	fmt.Println("Set up is done")
-	
+
 }

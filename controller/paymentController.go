@@ -95,7 +95,7 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 var Sub models.Subscription
 
 func anyActiveSubscriptionProOrCreator(user_id string) bool {
-	filter := bson.D{{"user_id", user_id}}
+	filter := bson.D{{Key: "user_id", Value: user_id}}
 	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&Sub)
 	if err != nil {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
@@ -243,7 +243,7 @@ func SubscriptionSuccess() fiber.Handler {
 
 		// update subscription status pending to active
 		if utils.VerifyPaymentLinkSignature(params, signature, secret) {
-			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), bson.D{{"user_id", user_id}}, bson.D{{"$set", bson.D{{"status", "active"}}}})
+			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), bson.D{{Key: "user_id", Value: user_id}}, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
 					Success: false,
@@ -325,8 +325,8 @@ func ActivateSubscription() fiber.Handler {
 		}
 		var sub models.Subscription
 		filter := bson.D{
-			{"user_id", user_id},
-			{"status", "pending"},
+			{Key: "user_id", Value: user_id},
+			{Key: "status", Value: "pending"},
 		}
 		result := connect.SubscriptionCollection.FindOne(context.TODO(), filter)
 		if err := result.Decode(&sub); err != nil {
@@ -342,10 +342,10 @@ func ActivateSubscription() fiber.Handler {
 		// if any plan just active update the status to active
 
 		updatePayload := bson.D{
-			{"$set", bson.D{
-				{"status", "active"},
-				{"end_at", time.Now().UTC().Add(duration)},
-				{"updated_at", time.Now().UTC()},
+			{Key: "$set", Value: bson.D{
+				{Key: "status", Value: "active"},
+				{Key: "end_at", Value: time.Now().UTC().Add(duration)},
+				{Key: "updated_at", Value: time.Now().UTC()},
 			}},
 		}
 		_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, updatePayload)

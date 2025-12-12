@@ -18,7 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	razorpay "github.com/razorpay/razorpay-go"
 	"github.com/razorpay/razorpay-go/utils"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -236,7 +236,7 @@ func SubscriptionSuccess() fiber.Handler {
 			"payment_link_id":           queries["razorpay_payment_link_id"],
 			"razorpay_payment_id":       queries["razorpay_payment_id"],
 			"payment_link_reference_id": queries["razorpay_payment_link_reference_id"],
-			"payment_link_status":       "paid",
+			"payment_link_status":       queries["razorpay_payment_link_status"],
 		}
 		signature := queries["razorpay_signature"]
 		secret := envs.RAZORPAY_KEY_SECRET

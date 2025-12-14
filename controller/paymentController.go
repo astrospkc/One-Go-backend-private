@@ -105,13 +105,21 @@ func anyActiveSubscriptionProOrCreator(user_id string) bool {
 	return true
 }
 
+type CreatePaymentLinkResponse struct {
+	Success bool                   `json:"success"`
+	Data    map[string]interface{} `json:"data"`
+	Message string                 `json:"message"`
+}
+
 func CreatePaymentLink() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		fmt.Println("CreatePaymentLink")
 		user_id, err := FetchUserId(c)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to fetch user id",
+			return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
+				Success: false,
+				Data:    nil,
+				Message: "Failed to fetch user id",
 			})
 		}
 		envs := env.NewEnv()
@@ -119,24 +127,30 @@ func CreatePaymentLink() fiber.Handler {
 			Plan string `json:"plan"`
 		}
 		if err := c.BodyParser(&body); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid request body",
+			return c.Status(fiber.StatusBadRequest).JSON(CreatePaymentLinkResponse{
+				Success: false,
+				Data:    nil,
+				Message: "Invalid request body",
 			})
 		}
 
 		if anyActiveSubscriptionProOrCreator(user_id) {
 			if Sub.Plan == body.Plan && Sub.Status == "active" && Sub.EndAt.After(time.Now().UTC()) {
 				fmt.Println("User already has an active subscription")
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "User already has an active subscription",
+				return c.Status(fiber.StatusBadRequest).JSON(CreatePaymentLinkResponse{
+					Success: false,
+					Data:    nil,
+					Message: "User already has an active subscription",
 				})
 			} else {
 				isPlanChanged := Sub.Plan != body.Plan
 				if isPlanChanged {
 					// update subscription
 					if !isUpdateSubscription(user_id, body.Plan, Sub) {
-						return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-							"error": "Failed to update subscription",
+						return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
+							Success: false,
+							Data:    nil,
+							Message: "Failed to update subscription",
 						})
 					} else {
 						fmt.Println("Subscription updated successfully")
@@ -157,8 +171,10 @@ func CreatePaymentLink() fiber.Handler {
 
 			_, err = connect.SubscriptionCollection.InsertOne(context.TODO(), subscription)
 			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to create subscription",
+				return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
+					Success: false,
+					Data:    nil,
+					Message: "Failed to create subscription",
 				})
 			}
 		}
@@ -194,17 +210,20 @@ func CreatePaymentLink() fiber.Handler {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Payment link creation failed",
+			return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
+				Success: false,
+				Data:    nil,
+				Message: "Payment link creation failed",
 			})
 		}
 		defer resp.Body.Close()
 
 		var razorResponse map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&razorResponse)
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"success": true,
-			"data":    razorResponse,
+		return c.Status(fiber.StatusOK).JSON(CreatePaymentLinkResponse{
+			Success: true,
+			Data:    razorResponse,
+			Message: "Payment link created successfully",
 		})
 
 	}
@@ -225,8 +244,9 @@ func SubscriptionSuccess() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user_id, err := FetchUserId(c)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to fetch user id",
+			return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
+				Success: false,
+				Message: "Failed to fetch user id",
 			})
 		}
 		envs := env.NewEnv()

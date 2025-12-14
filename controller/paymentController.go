@@ -70,21 +70,35 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 
 	if sub.Status == "active" && sub.EndAt.After(time.Now().UTC()) {
 		// update subscription
-		filter := bson.M{"user_id": user_id}
-
+		filterUpdate := bson.M{
+			"user_id": user_id,
+			"id":      sub.Id,
+		}
 		now := time.Now().UTC()
 
-		startTime := maxTime(sub.EndAt.Add(24*time.Hour), now.Add(24*time.Hour))
+		startTime := now.Add(24 * time.Hour)
 		endTime := startTime.Add(30 * 24 * time.Hour)
 
 		update := bson.M{
 			"$set": bson.M{
-				"start_at": startTime,
-				"end_at":   endTime,
-				"status":   "active",
+				"status": "finished",
 			},
 		}
-		_, err := connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, update)
+		_, err := connect.SubscriptionCollection.UpdateOne(context.TODO(), filterUpdate, update)
+		if err != nil {
+			return false
+		}
+		newSubscription := models.Subscription{
+			UserId:      user_id,
+			Plan:        plan,
+			Status:      "pending",
+			StartAt:     now,
+			EndAt:       endTime,
+			AutoRenew:   false,
+			TrialEndsAt: endTime,
+			UpdatedAt:   now,
+		}
+		_, err = connect.SubscriptionCollection.InsertOne(context.TODO(), newSubscription)
 		if err != nil {
 			return false
 		}
@@ -102,6 +116,9 @@ func anyActiveSubscriptionProOrCreator(user_id string) bool {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
 		return false
 	}
+	if Sub.Plan == "starter" {
+		return false
+	}
 	return true
 }
 
@@ -113,7 +130,7 @@ type CreatePaymentLinkResponse struct {
 
 func CreatePaymentLink() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		fmt.Println("CreatePaymentLink")
+
 		user_id, err := FetchUserId(c)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{

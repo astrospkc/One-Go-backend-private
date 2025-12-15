@@ -12,21 +12,22 @@ import (
 
 // https://one-go-private.vercel.app
 var Cfg *config.Config
+
 func main() {
 	app := fiber.New()
-	Cfg=config.LoadConfig()
+	Cfg = config.LoadConfig()
 
 	app.Use(cors.New(cors.Config{
-    AllowOrigins:     "http://localhost:3000, https://one-go-private.vercel.app",
-    AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-    AllowHeaders:     "*",
-    AllowCredentials: true,
-}))
+		AllowOrigins:     "http://localhost:3000, https://one-go-private.vercel.app",
+		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		AllowHeaders:     "*",
+		AllowCredentials: true,
+	}))
 	app.Server().MaxRequestBodySize = 50 * 1024 * 1024
 	connect.Connect()
 
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
-
+	connect.InitGemini()
 	connect.InitRedis()
 
 	// Example: Set & Get

@@ -260,6 +260,7 @@ type SubscriptionSucessResponse struct {
 func SubscriptionSuccess() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user_id, err := FetchUserId(c)
+
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
 				Success: false,
@@ -279,7 +280,11 @@ func SubscriptionSuccess() fiber.Handler {
 
 		// update subscription status pending to active
 		if utils.VerifyPaymentLinkSignature(params, signature, secret) {
-			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), bson.D{{Key: "user_id", Value: user_id}}, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
+			filter := bson.M{
+				"user_id": user_id,
+				"status":  "pending",
+			}
+			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
 					Success: false,

@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-// https://one-go-private.vercel.app
 var Cfg *config.Config
 
 func main() {

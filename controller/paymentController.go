@@ -110,7 +110,7 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 var Sub models.Subscription
 
 func anyActiveSubscriptionProOrCreator(user_id string) bool {
-	filter := bson.D{{Key: "user_id", Value: user_id}}
+	filter := bson.D{{Key: "user_id", Value: user_id},{Key:"status",Value:"active"}}
 	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&Sub)
 	if err != nil {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
@@ -175,10 +175,14 @@ func CreatePaymentLink() fiber.Handler {
 				}
 			}
 		} else {
+			status:="pending"
+			if body.Plan=="starter"{
+				status="active"
+			}
 			subscription := models.Subscription{
 				UserId:      user_id,
 				Plan:        body.Plan,
-				Status:      "pending",
+				Status:      status,
 				StartAt:     time.Now().UTC(),
 				EndAt:       time.Now().UTC().Add(time.Hour * 24 * 30),
 				AutoRenew:   false,

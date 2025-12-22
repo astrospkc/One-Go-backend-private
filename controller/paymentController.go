@@ -20,6 +20,7 @@ import (
 	"github.com/razorpay/razorpay-go/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -68,8 +69,9 @@ func maxTime(a, b time.Time) time.Time {
 
 func isUpdateSubscription(user_id string, plan string, sub models.Subscription) bool {
 
+	fmt.Println("subscription prev: ", sub,sub.Id, sub.Status, sub.EndAt)
 	if sub.Status == "active" && sub.EndAt.After(time.Now().UTC()) {
-		// update subscription
+		// update the previous subscription with finished status and create new subscription
 		filterUpdate := bson.M{
 			"user_id": user_id,
 			"id":      sub.Id,
@@ -88,10 +90,15 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 		if err != nil {
 			return false
 		}
+		plan_update := "pending"
+		if plan == "starter" {
+			plan_update = "active"
+		}
 		newSubscription := models.Subscription{
+			Id:          primitive.NewObjectID().Hex(),
 			UserId:      user_id,
 			Plan:        plan,
-			Status:      "pending",
+			Status:      plan_update,
 			StartAt:     now,
 			EndAt:       endTime,
 			AutoRenew:   false,
@@ -110,15 +117,15 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 var Sub models.Subscription
 
 func anyActiveSubscriptionProOrCreator(user_id string) bool {
-	filter := bson.D{{Key: "user_id", Value: user_id}}
+	filter := bson.D{{Key: "user_id", Value: user_id},{Key:"status",Value:"active"}}
 	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&Sub)
 	if err != nil {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
 		return false
 	}
-	if Sub.Plan == "starter" {
-		return false
-	}
+	// if Sub.Plan == "starter" {
+	// 	return false
+	// }
 	return true
 }
 
@@ -152,6 +159,7 @@ func CreatePaymentLink() fiber.Handler {
 		}
 
 		if anyActiveSubscriptionProOrCreator(user_id) {
+		
 			if Sub.Plan == body.Plan && Sub.Status == "active" && Sub.EndAt.After(time.Now().UTC()) {
 				fmt.Println("User already has an active subscription")
 				return c.Status(fiber.StatusBadRequest).JSON(CreatePaymentLinkResponse{
@@ -161,6 +169,8 @@ func CreatePaymentLink() fiber.Handler {
 				})
 			} else {
 				isPlanChanged := Sub.Plan != body.Plan
+				fmt.Println("isPlanChanged: ", isPlanChanged)
+			
 				if isPlanChanged {
 					// update subscription
 					if !isUpdateSubscription(user_id, body.Plan, Sub) {
@@ -170,15 +180,32 @@ func CreatePaymentLink() fiber.Handler {
 							Message: "Failed to update subscription",
 						})
 					} else {
+
+						// in place of short_url for starter - keep the frontend redirect url
+						response := map[string]interface{}{
+							"short_url": `http://localhost:3000/dashboard`,
+						}
+						if body.Plan=="starter"{
+							return c.Status(fiber.StatusOK).JSON(CreatePaymentLinkResponse{
+								Success: true,
+								Data:    response,
+								Message: "Subscription updated successfully",
+							})
+						}
 						fmt.Println("Subscription updated successfully")
 					}
 				}
 			}
 		} else {
+			status:="pending"
+			if body.Plan=="starter"{
+				status="active"
+			}
 			subscription := models.Subscription{
+				Id:          primitive.NewObjectID().Hex(),
 				UserId:      user_id,
 				Plan:        body.Plan,
-				Status:      "pending",
+				Status:      status,
 				StartAt:     time.Now().UTC(),
 				EndAt:       time.Now().UTC().Add(time.Hour * 24 * 30),
 				AutoRenew:   false,
@@ -199,7 +226,7 @@ func CreatePaymentLink() fiber.Handler {
 		priceMap := map[string]int64{
 			"starter": 0,
 			"creator": 99 * 100,
-			"pro":     499 * 100,
+			"pro":     299 * 100,
 		}
 
 		amount := priceMap[strings.ToLower(body.Plan)]
@@ -286,11 +313,13 @@ func SubscriptionSuccess() fiber.Handler {
 			}
 			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
 			if err != nil {
+				fmt.Println("Failed to update subscription status", err)
 				return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
 					Success: false,
 					Message: "Failed to update subscription status",
 				})
 			}
+
 			return c.Status(fiber.StatusOK).JSON(SubscriptionSucessResponse{
 				Success: true,
 				Message: "Subscription updated successfully",
@@ -334,6 +363,7 @@ func CreatePendingSubscription() fiber.Handler {
 			})
 		}
 		subscription := models.Subscription{
+			Id:          primitive.NewObjectID().Hex(),
 			UserId:      user_id,
 			Plan:        body.Plan,
 			Status:      status,

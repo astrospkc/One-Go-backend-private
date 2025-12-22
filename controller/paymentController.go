@@ -20,6 +20,7 @@ import (
 	"github.com/razorpay/razorpay-go/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -122,9 +123,9 @@ func anyActiveSubscriptionProOrCreator(user_id string) bool {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
 		return false
 	}
-	if Sub.Plan == "starter" {
-		return false
-	}
+	// if Sub.Plan == "starter" {
+	// 	return false
+	// }
 	return true
 }
 
@@ -168,6 +169,7 @@ func CreatePaymentLink() fiber.Handler {
 				})
 			} else {
 				isPlanChanged := Sub.Plan != body.Plan
+				fmt.Println("isPlanChanged: ", isPlanChanged)
 			
 				if isPlanChanged {
 					// update subscription

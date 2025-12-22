@@ -1,5 +1,23 @@
 package controller
 
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"time"
+
+	"gobackend/connect"
+	"gobackend/models"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"google.golang.org/genai"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+
+
 type APIProject struct {
 	Id           string    `bson:"id,omitempty" json:"id"`
 	Title        string    `bson:"title" json:"title"`
@@ -18,15 +36,8 @@ type APIProject struct {
 
 func GenerateAIContent() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		col_id:=c.Query("col_id","")
-		user_id,err:=FetchUserId(c)
-		if err!=nil{
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"data":    nil,
-			})
-		}
-
+		col_id:=c.Params("col_id")
+		fmt.Println("col_id", col_id)
 		var body struct {
 			Content string `json:"content"`
 		}
@@ -41,8 +52,8 @@ func GenerateAIContent() fiber.Handler {
 		// get the collection id from the request
 		// get all the projects of the collection 
 		var projects []models.Project 
-		err = connect.ProjectCollection.Find(context.TODO(), bson.M{"collection_id": col_id}).All(context.TODO(), &projects)
-		if err != nil {
+		cursor,err:= connect.ProjectCollection.Find(context.TODO(), bson.M{"collection_id": col_id})
+		if err := cursor.All(context.TODO(), &projects); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"data":    nil,
@@ -67,6 +78,8 @@ func GenerateAIContent() fiber.Handler {
 				UpdatedAt:    project.UpdatedAt,
 			})
 		}
+
+		fmt.Println("projects: ", projects)
 
 		projectJson,_:=json.MarshalIndent(apiProjects,""," ")
 
@@ -99,21 +112,23 @@ func GenerateAIContent() fiber.Handler {
 			`, string(projectJson), body.Content)
 
 
-		config:=&genai.GenerateContentConfig{
-			ResponseMIMEType: "text/plain",
-			Temperature: 0.2,
-			
-		}
-
-		resp, err:=model.GenerateContent(prompt, config)
+		config := &genai.GenerateContentConfig{
+        Tools: []*genai.Tool{
+            {CodeExecution: &genai.ToolCodeExecution{}},
+        },
+    }
+		model := "gemini-2.5-flash"
+		resp, err:=connect.GeminiClient.Models.GenerateContent(context.TODO(),model,genai.Text(prompt), config)
 		if err!=nil{
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"data":    nil,
 			})
 		}
-		generatedCode := resp.Candidates[0].Content.Parts[0].(genai.Text)
-		fmt.Println("Generated Code :", generatedCode)
+		
+		fmt.Println(resp.Text())
+		fmt.Println(resp.ExecutableCode())
+		fmt.Println(resp.CodeExecutionResult())
 		
 
 

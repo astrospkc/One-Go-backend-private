@@ -84,4 +84,7 @@ func RegisterNormalRoutes(app *fiber.App) {
 	paymentGroup.Get("/subscription/isActive", controller.GetActiveSubscription())
 
 	// paymentGroup.Post("/payment-callback", controller.PaymentCallback(cfg))
+
+	ai := app.Group("/ai", middleware.FetchUser())
+	ai.Get("/generateCode/:col_id", controller.GenerateAIContent())
 }

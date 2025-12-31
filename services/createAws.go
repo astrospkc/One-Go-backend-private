@@ -50,14 +50,12 @@ func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data
 		log.Fatal("failed to generate presigned URL:", err)
 	}
 
-	fmt.Println("Am I failing here 1")
 	// now put operation to upload it to s3
 	httpreq, err:= http.NewRequest("PUT",presignedURL.URL, bytes.NewReader(data))
 	if err!=nil{
 		return "",err
 	}
 
-	fmt.Println("Am I failing here 2")
 	
 
 	httpreq.Header.Set("Content-Type",contentType)
@@ -66,20 +64,13 @@ func CreatePresignedUrlAndUploadObject(bucketName string , objectKey string,data
 	if err!=nil{
 		return "",err 
 	}
-	fmt.Println("Am I failing here 3")
 
 	defer resp.Body.Close()
-	fmt.Println("Am I failing here 4", resp.StatusCode)
 
 	if resp.StatusCode !=http.StatusOK{
 		body,_ := io.ReadAll(resp.Body)
 		return "",fmt.Errorf("error while uploading %s %s", resp.Status, body)
 	}
-
-	fmt.Println("Am I failing here 5")
-
-
-
 	// fmt.Println("Presigned URL:", presignedURL.URL)
 	return  presignedURL.URL, nil
 }

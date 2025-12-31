@@ -10,12 +10,9 @@ import (
 
 	"gobackend/connect"
 	"gobackend/models"
-	 "github.com/google/uuid"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"google.golang.org/genai"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -168,8 +165,8 @@ func GenerateAIContent() fiber.Handler {
 		result:=resp.Text()
 		files:=ParseFiles(result)
 		
-		// fmt.Println(resp.ExecutableCode())
-		// fmt.Println(resp.CodeExecutionResult())
+		fmt.Println(resp.ExecutableCode())
+		fmt.Println(resp.CodeExecutionResult(), files)
 		
 
 

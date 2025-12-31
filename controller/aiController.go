@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"time"
 
 	"gobackend/connect"
 	"gobackend/models"
+	 "github.com/google/uuid"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"google.golang.org/genai"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -89,13 +93,37 @@ func GenerateAIContent() fiber.Handler {
 			Your task:
 			Generate a complete developer portfolio website using the provided project data.
 
-			Constraints:
-			- Use Next.js 14 (App Router)
+			Build target (STRICT):
+			- The project MUST be statically buildable
+			- The output MUST work with static hosting
+			- The final build output MUST be HTML, CSS, and client-side JavaScript only
+			- The site MUST NOT require a backend server at runtime
+
+			Tech stack (STRICT):
+			- React 19
 			- TypeScript
 			- Tailwind CSS
+			- Vite (static build) OR Next.js with static export ONLY
+
+			Static constraints (VERY IMPORTANT):
+			- Do NOT use server components
+			- Do NOT use API routes
+			- Do NOT use middleware
+			- Do NOT use environment variables
+			- Do NOT use filesystem, process, or child_process
+			- Do NOT use dynamic imports
+			- Do NOT use SSR or runtime rendering
+			- Do NOT assume any backend
+
+			SEO rules:
+			- Use semantic HTML
+			- Add meta tags
+			- Ensure all pages are statically rendered
+
+			Design requirements:
 			- Clean, modern design
-			- SEO friendly
 			- Mobile responsive
+			- Accessible layout
 
 			Project data (JSON):
 			%s
@@ -103,13 +131,24 @@ func GenerateAIContent() fiber.Handler {
 			User request:
 			%s
 
-			Output rules:
+			Output rules (STRICT):
 			- Output CODE ONLY
+			- Do NOT include explanations or markdown
 			- Use comments to separate files
-			- Use format: // FILE: path/to/file
+			- Use EXACT format:
+			// FILE: path/to/file
+
+			Failure handling:
+			- If any feature cannot be implemented within these constraints,
+			OMIT the feature instead of breaking the build.
+
+			IMPORTANT:
+			Before outputting, internally verify that the project builds successfully.
+			If it would fail, fix the code before outputting.
 
 			Generate the full portfolio now.
 			`, string(projectJson), body.Content)
+
 
 
 		config := &genai.GenerateContentConfig{
@@ -126,9 +165,11 @@ func GenerateAIContent() fiber.Handler {
 			})
 		}
 		
-		fmt.Println(resp.Text())
-		fmt.Println(resp.ExecutableCode())
-		fmt.Println(resp.CodeExecutionResult())
+		result:=resp.Text()
+		files:=ParseFiles(result)
+		
+		// fmt.Println(resp.ExecutableCode())
+		// fmt.Println(resp.CodeExecutionResult())
 		
 
 
@@ -138,3 +179,34 @@ func GenerateAIContent() fiber.Handler {
 		})
 	}
 }
+
+type GeneratedFle struct{
+	Path string
+	Content string
+}
+
+// siteId := uuid.NewString()
+
+func ParseFiles(aiOutput string)[]GeneratedFle{
+	var files []GeneratedFle
+
+	parts := strings.Split(aiOutput, "")
+	for _,part:=range parts{
+		part = strings.TrimSpace(part)
+		if part==""{
+			continue
+		}
+		lines:=strings.SplitN(part,"\n" ,2)
+		if len(lines)<2{
+			continue
+		}
+
+		files = append(files, GeneratedFle{
+			Path: strings.TrimSpace(lines[0]),
+			Content:strings.TrimSpace(lines[1]),
+		})
+	}
+	return files
+}
+
+// generate file presigned url

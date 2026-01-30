@@ -39,6 +39,7 @@ type UserResponse struct {
 	APIkey          string `bson:"api_key,omitempty" json:"api_key"`
 	OTP             string `bson:"otp,omitempty" json:"otp"`
 	OTPVerification string `bson:"otpVerification,omitempty" json:"otpVerification"`
+	Plan            string `bson:"plan,omitempty" json:"plan"`
 }
 
 type Response struct {

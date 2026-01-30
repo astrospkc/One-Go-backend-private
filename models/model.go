@@ -17,6 +17,7 @@ type User struct {
 	APIkey          string `bson:"api_key" json:"api_key"`
 	OTP             string `bson:"otp,omitempty" json:"otp"`
 	OTPVerification string `bson:"otpVerification,omitempty" json:"otpVerification"`
+	Plan            string `bson:"plan,omitempty" json:"plan" default: starter`
 }
 
 type Collection struct {

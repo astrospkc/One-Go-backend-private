@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.67
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.2
-	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/razorpay/razorpay-go v1.4.0
@@ -19,6 +19,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.3
 	go.mongodb.org/mongo-driver/v2 v2.1.0
 	golang.org/x/crypto v0.37.0
+	google.golang.org/genai v1.39.0
 )
 
 require (
@@ -82,7 +83,6 @@ require (
 	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
-	google.golang.org/genai v1.39.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241223144023-3abc09e42ca8 // indirect
 	google.golang.org/grpc v1.67.3 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect

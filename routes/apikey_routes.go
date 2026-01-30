@@ -17,8 +17,9 @@ func RegisterAPIKeyRoutes(app *fiber.App){
 
 	collection:=app.Group("/api/v1/collection", middleware.ValidateAPIKey())
 	collection.Get("with-projects", controller.FetchAllCollectionWithProjects())
-	collection.Post("/", middleware.IsSubscribed(), controller.CreateCollection(),)
 	collection.Get("/", controller.GetAllCollection())
+
+	collection.Post("/", middleware.IsSubscribed(), controller.CreateCollection(),)
 	collection.Delete("/deleteAllCollection", middleware.IsSubscribed(), controller.DeleteAllCollection())
 	collection.Delete("/:id", middleware.IsSubscribed(), controller.DeleteCollection())
 	collection.Put("/:id", middleware.IsSubscribed(), controller.UpdateCollection())
@@ -31,7 +32,7 @@ func RegisterAPIKeyRoutes(app *fiber.App){
 	project.Put("/:projectid", middleware.IsSubscribed(), controller.UpdateProject())
 	project.Get("/", controller.GetAllProject())
 	project.Get("/collectionProject/:col_id", controller.GetAllProjectOfCollectionId())
-	project.Get("/readProject/:projectid",controller.GetAllProjectOfCollectionId())
+	project.Get("/readProject/:projectid",controller.GetProjectByProjectId())
 	project.Delete("/deleteProject/:projectid",middleware.IsSubscribed(),controller.DeleteProject())
 	project.Delete("/deleteAllProject/:col_id", middleware.IsSubscribed(), controller.DeleteAllProject())
 

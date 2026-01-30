@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+
 	"gobackend/connect"
 	"gobackend/models"
 
@@ -28,6 +29,7 @@ func ValidateAPIKey() fiber.Handler {
 	}
 
 	c.Locals("user_id", u.UserId)
+	
 	return c.Next()
 }
 

@@ -334,6 +334,7 @@ func RegisterVerifyOTP() fiber.Handler {
 			APIkey:          apikey,
 			OTP:             "",
 			OTPVerification: "verified",
+			Plan:            "starter",
 		}
 
 		_, err = connect.UsersCollection.InsertOne(context.TODO(), user)

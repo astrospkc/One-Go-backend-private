@@ -28,13 +28,16 @@ func RegisterAPIKeyRoutes(app *fiber.App){
 	// handling normal routings with auth middleware
 	project := app.Group("/api/v1/project", middleware.ValidateAPIKey())
 	
-	project.Post("/:col_id", middleware.IsSubscribed(), controller.CreateProject())
-	project.Put("/:projectid", middleware.IsSubscribed(), controller.UpdateProject())
+	project.Post("/presignedUrl",middleware.IsSubscribed(), controller.GetFilePresignedUrl())
+
+	project.Post("createProject/:col_id",middleware.IsSubscribed(), controller.CreateProject())
+	project.Put("/:projectid",middleware.IsSubscribed(), controller.UpdateProject())
 	project.Get("/", controller.GetAllProject())
 	project.Get("/collectionProject/:col_id", controller.GetAllProjectOfCollectionId())
-	project.Get("/readProject/:projectid",controller.GetProjectByProjectId())
-	project.Delete("/deleteProject/:projectid",middleware.IsSubscribed(),controller.DeleteProject())
-	project.Delete("/deleteAllProject/:col_id", middleware.IsSubscribed(), controller.DeleteAllProject())
+	project.Get("/readProject/:projectid", controller.GetProjectByProjectId())
+	project.Delete("/deleteProject/:projectid",middleware.IsSubscribed(), controller.DeleteProject())
+	project.Delete("/deleteAllProject/:col_id",middleware.IsSubscribed(), controller.DeleteAllProject())
+	project.Delete("/deleteFile/:project_id",middleware.IsSubscribed(), controller.DeleteFile())
 
 	// Blog-section
 	blog := app.Group("/api/v1/blog", middleware.ValidateAPIKey())

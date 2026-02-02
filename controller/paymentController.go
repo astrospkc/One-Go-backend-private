@@ -18,9 +18,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	razorpay "github.com/razorpay/razorpay-go"
 	"github.com/razorpay/razorpay-go/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -60,12 +60,7 @@ func CreateOrder(cfg *config.Config) fiber.Handler {
 	}
 }
 
-func maxTime(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
-}
+
 
 func isUpdateSubscription(user_id string, plan string, sub models.Subscription) bool {
 
@@ -498,3 +493,15 @@ func GetActiveSubscription() fiber.Handler {
 		})
 	}
 }
+
+func PaymentWebhook() fiber.Handler{
+	return func (c *fiber.Ctx) error  {
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			
+				"message": "successful operation",
+			},
+		)
+	}
+}
+

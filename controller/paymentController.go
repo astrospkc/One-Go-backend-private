@@ -18,9 +18,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	razorpay "github.com/razorpay/razorpay-go"
 	"github.com/razorpay/razorpay-go/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
@@ -60,12 +60,7 @@ func CreateOrder(cfg *config.Config) fiber.Handler {
 	}
 }
 
-func maxTime(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
-}
+
 
 func isUpdateSubscription(user_id string, plan string, sub models.Subscription) bool {
 
@@ -273,10 +268,7 @@ func CreatePaymentLink() fiber.Handler {
 	}
 }
 
-// razorpay_payment_id=pay_RpA339YQ8jrMIk&
-// razorpay_payment_link_id=plink_RpA2eytvDXpT4j&
-// razorpay_payment_link_reference_id=&razorpay_payment_link_status=paid&
-// razorpay_signature=9323c77f4e18b8fd41d7c25fa37db7c10bdf80120429ec979cbed841d602d918
+
 
 // if payment is verified , then update subscription status.
 type SubscriptionSucessResponse struct {
@@ -498,3 +490,16 @@ func GetActiveSubscription() fiber.Handler {
 		})
 	}
 }
+
+func PaymentWebhook() fiber.Handler{
+	return func (c *fiber.Ctx) error  {
+		// payment refund , payment success, failure all must be implemented
+
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			
+				"message": "successful operation",
+			},
+		)
+	}
+}
+

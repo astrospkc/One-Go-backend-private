@@ -144,6 +144,21 @@ type Subscription struct {
 	UpdatedAt   time.Time `bson:"updated_at" json:"updated_at"`
 }
 
+type SubscriptionPayment struct {
+	Id              string	`bson:"id,omitempty" json:"id"`
+	SubscriptionId  string	`bson:"subscription_id" json:"subscription_id"`
+	UserId          string	`bson:"user_id" json:"user_id"`
+	Amount          float64	`bson:"amount" json:"amount"`
+	Currency        string	`bson:"currency" json:"currency"`
+	Gateway         string	`bson:"gatewat" json:"gatewat"`
+	PaymentRef      string	`bson:"payment_reference" json:"payment_reference"`
+	Status          string	`bson:"status" json:"status"`
+	PeriodStart     time.Time `bson:"period_start" json:"period_start"`
+	PeriodEnd       time.Time `bson:"period_end" json:"period_end"`
+	IdempotencyKey  string	`bson:"idempotency_key" json:"idempotency_key"`
+	CreatedAt       time.Time `bson:"created_at" json:"created_at"`
+}
+
 // Tracks storage & API usage for billing limits
 type Usage struct {
 	ID               string    `bson:"_id,omitempty" json:"id"`

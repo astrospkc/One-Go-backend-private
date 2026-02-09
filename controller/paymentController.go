@@ -3,6 +3,9 @@ package controller
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"gobackend/connect"
@@ -22,6 +25,32 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
+
+
+
+type RazorpayEvent struct {
+	Event string `json:"event"`
+	Payload struct {
+		Payment struct {
+			Entity struct {
+				Id        string `json:"id"`
+				Status    string `json:"status"`
+				Amount    int64  `json:"amount"`
+				Currency  string `json:"currency"`
+			} `json:"entity"`
+		} `json:"payment"`
+
+		Refund struct {
+			Entity struct {
+				Id       string `json:"id"`
+				PaymentId string `json:"payment_id"`
+				Status   string `json:"status"`
+				Amount   int64  `json:"amount"`
+			} `json:"entity"`
+		} `json:"refund"`
+	} `json:"payload"`
+}
+
 
 func CreateOrder(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -59,8 +88,6 @@ func CreateOrder(cfg *config.Config) fiber.Handler {
 		})
 	}
 }
-
-
 
 func isUpdateSubscription(user_id string, plan string, sub models.Subscription) bool {
 
@@ -268,14 +295,13 @@ func CreatePaymentLink() fiber.Handler {
 	}
 }
 
-
-
 // if payment is verified , then update subscription status.
 type SubscriptionSucessResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
 
+// in place of this webhook is called
 func SubscriptionSuccess() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user_id, err := FetchUserId(c)
@@ -491,15 +517,68 @@ func GetActiveSubscription() fiber.Handler {
 	}
 }
 
+
+// ************************* Payment webhook ************************
+
+
+func verifyRazorpaySignature(payload []byte, signature, secret string) bool {
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write(payload)
+	expected := hex.EncodeToString(h.Sum(nil))
+	return hmac.Equal([]byte(expected), []byte(signature))
+}
+
 func PaymentWebhook() fiber.Handler{
 	return func (c *fiber.Ctx) error  {
 		// payment refund , payment success, failure all must be implemented
+		envs := env.NewEnv()
+		body := c.Body()
+		signature  := c.Get("X-RAZORPAY-SIGNATURE")
+		secret:= envs.RAZORPAY_WEBHOOK_SECRET
+
+		// verify signature
+		if !verifyRazorpaySignature(body, signature, secret){
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+
+		// parse webhook payload
+		var event RazorpayEvent
+		if err:= json.Unmarshal(body, &event);err!=nil{
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		// handle event
+		handleRazorpayEvent(event)
+
 
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			
 				"message": "successful operation",
 			},
 		)
+	}
+}
+
+func handleRazorpayEvent(event RazorpayEvent){
+	switch event.Event {
+	case "payment.captured":
+		p := event.Payload.Payment.Entity
+		// mark success
+		fmt.Print("p: ", p)
+	case "payment:failed":
+		p:= event.Payload.Refund.Entity
+		// payment failed
+		fmt.Print("p: ", p)
+
+	case "refund.processed":
+		p:=event.Payload.Payment.Entity
+		// update refund status
+		fmt.Print("p: ", p)
+
+	default:
+		// log unhandled event
+		fmt.Print("p")
+
 	}
 }
 

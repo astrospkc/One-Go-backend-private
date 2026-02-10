@@ -20,7 +20,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	razorpay "github.com/razorpay/razorpay-go"
-	"github.com/razorpay/razorpay-go/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -37,6 +36,7 @@ type RazorpayEvent struct {
 				Status    string `json:"status"`
 				Amount    int64  `json:"amount"`
 				Currency  string `json:"currency"`
+				Notes map[string]string	`json:"notes"`
 			} `json:"entity"`
 		} `json:"payment"`
 
@@ -46,9 +46,12 @@ type RazorpayEvent struct {
 				PaymentId string `json:"payment_id"`
 				Status   string `json:"status"`
 				Amount   int64  `json:"amount"`
+				Notes map[string]string	`json:"notes"`
 			} `json:"entity"`
 		} `json:"refund"`
 	} `json:"payload"`
+
+	
 }
 
 
@@ -136,19 +139,20 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 
 }
 
-var Sub models.Subscription
 
-func anyActiveSubscriptionProOrCreator(user_id string) bool {
+func anyActiveSubscriptionProOrCreator(user_id string) (bool, models.Subscription) {
+	var subscription models.Subscription
+
 	filter := bson.D{{Key: "user_id", Value: user_id},{Key:"status",Value:"active"}}
-	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&Sub)
+	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&subscription)
 	if err != nil {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
-		return false
+		return false, models.Subscription{}
 	}
 	// if Sub.Plan == "starter" {
 	// 	return false
 	// }
-	return true
+	return true, subscription
 }
 
 type CreatePaymentLinkResponse struct {
@@ -180,9 +184,11 @@ func CreatePaymentLink() fiber.Handler {
 			})
 		}
 
-		if anyActiveSubscriptionProOrCreator(user_id) {
 		
-			if Sub.Plan == body.Plan && Sub.Status == "active" && Sub.EndAt.After(time.Now().UTC()) {
+		isActive,subscription := anyActiveSubscriptionProOrCreator(user_id)
+
+		if isActive {
+			if subscription.Plan == body.Plan && subscription.Status == "active" && subscription.EndAt.After(time.Now().UTC()) {
 				fmt.Println("User already has an active subscription")
 				return c.Status(fiber.StatusBadRequest).JSON(CreatePaymentLinkResponse{
 					Success: false,
@@ -190,12 +196,12 @@ func CreatePaymentLink() fiber.Handler {
 					Message: "User already has an active subscription",
 				})
 			} else {
-				isPlanChanged := Sub.Plan != body.Plan
+				isPlanChanged := subscription.Plan != body.Plan
 				fmt.Println("isPlanChanged: ", isPlanChanged)
 			
 				if isPlanChanged {
 					// update subscription
-					if !isUpdateSubscription(user_id, body.Plan, Sub) {
+					if !isUpdateSubscription(user_id, body.Plan, subscription) {
 						return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
 							Success: false,
 							Data:    nil,
@@ -267,6 +273,11 @@ func CreatePaymentLink() fiber.Handler {
 			},
 			"callback_url":    "http://localhost:3000/dashboard/payment/subscription/success", //change the domain later
 			"callback_method": "get",
+			"notes":map[string]string{
+				"user_id":user_id,
+				"subscription_id":subscription.Id,
+				"sub_payment_id":"",
+			},
 		}
 		payloadBytes, _ := json.Marshal(payload)
 
@@ -302,54 +313,20 @@ type SubscriptionSucessResponse struct {
 }
 
 // in place of this webhook is called
-func SubscriptionSuccess() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		user_id, err := FetchUserId(c)
-
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
-				Success: false,
-				Message: "Failed to fetch user id",
-			})
-		}
-		envs := env.NewEnv()
-		queries := c.Queries()
-		params := map[string]interface{}{
-			"payment_link_id":           queries["razorpay_payment_link_id"],
-			"razorpay_payment_id":       queries["razorpay_payment_id"],
-			"payment_link_reference_id": queries["razorpay_payment_link_reference_id"],
-			"payment_link_status":       queries["razorpay_payment_link_status"],
-		}
-		signature := queries["razorpay_signature"]
-		secret := envs.RAZORPAY_KEY_SECRET
-
+func SubscriptionSuccess(userId string , subscriptionId string, subPaymentId string)bool {
 		// update subscription status pending to active
-		if utils.VerifyPaymentLinkSignature(params, signature, secret) {
-			filter := bson.M{
-				"user_id": user_id,
-				"status":  "pending",
-			}
-			_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
-			if err != nil {
-				fmt.Println("Failed to update subscription status", err)
-				return c.Status(fiber.StatusInternalServerError).JSON(SubscriptionSucessResponse{
-					Success: false,
-					Message: "Failed to update subscription status",
-				})
-			}
 
-			return c.Status(fiber.StatusOK).JSON(SubscriptionSucessResponse{
-				Success: true,
-				Message: "Subscription updated successfully",
-			})
+		filter := bson.M{
+			"user_id": userId,
+			"status":  "pending",
+		}
+		_, err := connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
+		if err != nil {
+			fmt.Println("Failed to update subscription status", err)
+			return false
 		}
 
-		return c.Status(fiber.StatusUnauthorized).JSON(SubscriptionSucessResponse{
-			Success: false,
-			Message: "Invalid signature",
-		})
-
-	}
+		return true
 }
 
 // insert subscription pending . if free its active
@@ -450,12 +427,10 @@ func ActivateSubscription() fiber.Handler {
 }
 
 // Mark Subsc
-func MarkSubscriptionFailed() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"success": true,
-		})
-	}
+func MarkSubscriptionFailed(userId string, subscriptionId string, subPaymentId string) bool {
+	
+	return false
+	
 }
 
 func UpdateAutoRenew() fiber.Handler {
@@ -531,6 +506,7 @@ func verifyRazorpaySignature(payload []byte, signature, secret string) bool {
 func PaymentWebhook() fiber.Handler{
 	return func (c *fiber.Ctx) error  {
 		// payment refund , payment success, failure all must be implemented
+		
 		envs := env.NewEnv()
 		body := c.Body()
 		signature  := c.Get("X-RAZORPAY-SIGNATURE")
@@ -563,21 +539,33 @@ func handleRazorpayEvent(event RazorpayEvent){
 	switch event.Event {
 	case "payment.captured":
 		p := event.Payload.Payment.Entity
+		notes:= p.Notes
+		user_id:=notes["user_id"]
+		subscription_id := notes["subscription_id"]
+		sub_pay_id :=notes["sub_payment_id"]
+		SubscriptionSuccess(user_id, subscription_id, sub_pay_id)
 		// mark success
-		fmt.Print("p: ", p)
-	case "payment:failed":
-		p:= event.Payload.Refund.Entity
-		// payment failed
-		fmt.Print("p: ", p)
 
+		fmt.Println("p:", p)
+		
+	case "payment.failed":
+		// payment failed
+		p:= event.Payload.Payment.Entity
+		notes:= p.Notes
+		user_id:=notes["user_id"]
+		subscription_id := notes["subscription_id"]
+		sub_pay_id :=notes["sub_payment_id"]
+		MarkSubscriptionFailed(user_id, subscription_id, sub_pay_id)
+		fmt.Println("p: ", p)
+		
 	case "refund.processed":
 		p:=event.Payload.Payment.Entity
 		// update refund status
-		fmt.Print("p: ", p)
+		fmt.Println("p: ", p)
 
 	default:
 		// log unhandled event
-		fmt.Print("p")
+		fmt.Println("p")
 
 	}
 }

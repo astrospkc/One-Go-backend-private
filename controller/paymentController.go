@@ -25,6 +25,25 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
+type SubscriptionPaymentState string
+type PlanState string 
+
+const (
+	PlanPending	PlanState ="PENDING"
+	PlanActive	PlanState ="ACTIVE"
+	PlanCancelled PlanState ="CANCELLED"
+	PlanExpired	PlanState = "EXPIRED"
+)
+
+const (
+	SubscriptionPendingPayment SubscriptionPaymentState = "PENDING_PAYMENT"
+	SubscriptionPayConfirmed      SubscriptionPaymentState = "CONFIRMED"
+	SubscriptionPayCancelled      SubscriptionPaymentState = "CANCELLED"
+	SubscriptionPayExpired        SubscriptionPaymentState = "EXPIRED"
+	SubscriptionPayRefunded       SubscriptionPaymentState = "REFUNDED"
+	SubscriptionPayRefundFailed   SubscriptionPaymentState = "REFUND_FAILED"
+	SubscriptionPayRefundRequested SubscriptionPaymentState = "REFUND_REQUESTED"
+)
 
 
 type RazorpayEvent struct {
@@ -93,9 +112,8 @@ func CreateOrder(cfg *config.Config) fiber.Handler {
 }
 
 func isUpdateSubscription(user_id string, plan string, sub models.Subscription) bool {
-
 	fmt.Println("subscription prev: ", sub,sub.Id, sub.Status, sub.EndAt)
-	if sub.Status == "active" && sub.EndAt.After(time.Now().UTC()) {
+	if sub.Status == string(PlanActive) && sub.EndAt.After(time.Now().UTC()) {
 		// update the previous subscription with finished status and create new subscription
 		filterUpdate := bson.M{
 			"user_id": user_id,
@@ -108,16 +126,28 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 
 		update := bson.M{
 			"$set": bson.M{
-				"status": "finished",
+				"status": string(PlanExpired),
 			},
 		}
 		_, err := connect.SubscriptionCollection.UpdateOne(context.TODO(), filterUpdate, update)
 		if err != nil {
 			return false
 		}
-		plan_update := "pending"
+
+		var amount float64
+		switch plan{
+		case "pro":
+			amount=199
+		case "creator":
+			amount=99
+		default:
+			amount=0
+		}
+	
+
+		plan_update := string(PlanPending)
 		if plan == "starter" {
-			plan_update = "active"
+			plan_update = string(PlanActive)
 		}
 		newSubscription := models.Subscription{
 			Id:          primitive.NewObjectID().Hex(),
@@ -130,8 +160,29 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 			TrialEndsAt: endTime,
 			UpdatedAt:   now,
 		}
+
+		newSub_Pay := models.SubscriptionPayment{
+			Id:				primitive.NewObjectID().Hex(),
+			SubscriptionId: newSubscription.Id,
+			UserId: 		user_id,
+			Amount: 		amount,
+			Currency:       "INR",
+			Gateway: 		"razorpay",
+			PaymentRef: 	"",
+			Status:         string(SubscriptionPendingPayment),
+			PeriodStart: 	now,
+			PeriodEnd: 		endTime,
+			IdempotencyKey: user_id+newSubscription.Id+time.Now().UTC().String(),
+			RefundAmount: 	0,
+			ExpiresAt: 		time.Now().UTC().Add(15*time.Minute),
+			CreatedAt: 		time.Now().UTC(),
+		}
 		_, err = connect.SubscriptionCollection.InsertOne(context.TODO(), newSubscription)
 		if err != nil {
+			return false
+		}
+		_,err = connect.SubscriptionPaymentCollection.InsertOne(context.TODO(), newSub_Pay)
+		if err!=nil{
 			return false
 		}
 	}
@@ -143,7 +194,7 @@ func isUpdateSubscription(user_id string, plan string, sub models.Subscription) 
 func anyActiveSubscriptionProOrCreator(user_id string) (bool, models.Subscription) {
 	var subscription models.Subscription
 
-	filter := bson.D{{Key: "user_id", Value: user_id},{Key:"status",Value:"active"}}
+	filter := bson.D{{Key: "user_id", Value: user_id},{Key:"status",Value:string(PlanActive)}}
 	err := connect.SubscriptionCollection.FindOne(context.TODO(), filter).Decode(&subscription)
 	if err != nil {
 		fmt.Println("Failed to fetch subscription, user may not have any subscription")
@@ -161,9 +212,40 @@ type CreatePaymentLinkResponse struct {
 	Message string                 `json:"message"`
 }
 
+func createPaymentPayload(plan string, user_id string, subscription_id string) map[string]interface{}{
+	priceMap := map[string]int64{
+			"starter": 0,
+			"creator": 99 * 100,
+			"pro":     299 * 100,
+		}
+
+		amount := priceMap[strings.ToLower(plan)]
+
+		payload := map[string]interface{}{
+			"amount":      amount,
+			"currency":    "INR",
+			"description": fmt.Sprintf("Subscription - %s plan", plan),
+			"customer": map[string]string{
+				"name":  "Test User",
+				"email": "user@example.com",
+			},
+			"notify": map[string]bool{
+				"sms":   true,
+				"email": true,
+			},
+			"callback_url":    "http://localhost:3000/dashboard/payment/subscription/success", //change the domain later
+			"callback_method": "get",
+			"notes":map[string]string{
+				"user_id":user_id,
+				"subscription_id":subscription_id,
+				"sub_payment_id":"",
+			},
+		}
+		return payload
+}
+
 func CreatePaymentLink() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-
 		user_id, err := FetchUserId(c)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
@@ -188,7 +270,7 @@ func CreatePaymentLink() fiber.Handler {
 		isActive,subscription := anyActiveSubscriptionProOrCreator(user_id)
 
 		if isActive {
-			if subscription.Plan == body.Plan && subscription.Status == "active" && subscription.EndAt.After(time.Now().UTC()) {
+			if subscription.Plan == body.Plan && subscription.Status == string(PlanActive) && subscription.EndAt.After(time.Now().UTC()) {
 				fmt.Println("User already has an active subscription")
 				return c.Status(fiber.StatusBadRequest).JSON(CreatePaymentLinkResponse{
 					Success: false,
@@ -225,10 +307,21 @@ func CreatePaymentLink() fiber.Handler {
 				}
 			}
 		} else {
-			status:="pending"
-			if body.Plan=="starter"{
-				status="active"
+			var amount float64
+			status:=string(PlanPending)
+			switch body.Plan {
+			case "pro":
+				amount=199
+			case "creator":
+				amount=99
+			case "starter":
+				amount=0
+				status=string(PlanActive)
+			default:
+				amount=0
 			}
+			
+		
 			subscription := models.Subscription{
 				Id:          primitive.NewObjectID().Hex(),
 				UserId:      user_id,
@@ -240,6 +333,22 @@ func CreatePaymentLink() fiber.Handler {
 				TrialEndsAt: time.Now().UTC().Add(time.Hour * 24 * 30),
 				UpdatedAt:   time.Now().UTC(),
 			}
+			idempotencyKey:=user_id+subscription.Id+time.Now().UTC().String()
+			sub_payment := models.SubscriptionPayment{
+				Id:				primitive.NewObjectID().Hex(),
+				SubscriptionId: subscription.Id,
+				UserId: 		user_id,
+				Amount:			amount,
+				Currency: 		"INR",
+				Gateway: 		"razorpay",
+				PaymentRef: 	"",
+				Status:			string(SubscriptionPendingPayment),
+				PeriodStart: 	time.Now().UTC(),
+				PeriodEnd:		time.Now().UTC().Add(time.Hour*24*30),
+				IdempotencyKey: idempotencyKey,
+				RefundAmount:   0,
+				CreatedAt: 		time.Now().UTC(),
+			}
 
 			_, err = connect.SubscriptionCollection.InsertOne(context.TODO(), subscription)
 			if err != nil {
@@ -249,36 +358,19 @@ func CreatePaymentLink() fiber.Handler {
 					Message: "Failed to create subscription",
 				})
 			}
+
+			_, err = connect.SubscriptionPaymentCollection.InsertOne(context.TODO(), sub_payment)
+			if err !=nil{
+				return c.Status(fiber.StatusInternalServerError).JSON(CreatePaymentLinkResponse{
+					Success: false,
+					Data: nil,
+					Message: "Failed to create payment subscription details",
+				})
+			}
 		}
 
-		priceMap := map[string]int64{
-			"starter": 0,
-			"creator": 99 * 100,
-			"pro":     299 * 100,
-		}
-
-		amount := priceMap[strings.ToLower(body.Plan)]
-
-		payload := map[string]interface{}{
-			"amount":      amount,
-			"currency":    "INR",
-			"description": fmt.Sprintf("Subscription - %s plan", body.Plan),
-			"customer": map[string]string{
-				"name":  "Test User",
-				"email": "user@example.com",
-			},
-			"notify": map[string]bool{
-				"sms":   true,
-				"email": true,
-			},
-			"callback_url":    "http://localhost:3000/dashboard/payment/subscription/success", //change the domain later
-			"callback_method": "get",
-			"notes":map[string]string{
-				"user_id":user_id,
-				"subscription_id":subscription.Id,
-				"sub_payment_id":"",
-			},
-		}
+		payload := createPaymentPayload(body.Plan, user_id, subscription.Id)
+		
 		payloadBytes, _ := json.Marshal(payload)
 
 		req, _ := http.NewRequest("POST", "https://api.razorpay.com/v1/payment_links", bytes.NewBuffer(payloadBytes))
@@ -313,14 +405,35 @@ type SubscriptionSucessResponse struct {
 }
 
 // in place of this webhook is called
-func SubscriptionSuccess(userId string , subscriptionId string, subPaymentId string)bool {
+func SubscriptionSuccess(userId string , subscriptionId string, subPaymentId string, paymentRef string)bool {
 		// update subscription status pending to active
+		subPay_filter:= bson.M{
+			"subscription_id": subscriptionId,
+		}
+		subPay_updateDetails :=bson.D{{
+			Key:"$set",
+			Value: bson.D{{
+				Key: "payment_reference",
+				Value: paymentRef,
+			},
+			{
+				Key:"status",
+				Value: string(SubscriptionPayConfirmed),
+			},
+			
+		},
+		}}
 
+		_, err:= connect.SubscriptionPaymentCollection.UpdateOne(context.TODO(), subPay_filter, subPay_updateDetails)
+		if err !=nil{
+			fmt.Println("Failed to update payment subscription details", err)
+			return false
+		}
 		filter := bson.M{
 			"user_id": userId,
-			"status":  "pending",
+			"status":  string(PlanPending),
 		}
-		_, err := connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
+		_, err = connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, bson.D{{Key: "$set", Value: bson.D{{Key: "status", Value: "active"}}}})
 		if err != nil {
 			fmt.Println("Failed to update subscription status", err)
 			return false
@@ -428,8 +541,47 @@ func ActivateSubscription() fiber.Handler {
 
 // Mark Subsc
 func MarkSubscriptionFailed(userId string, subscriptionId string, subPaymentId string) bool {
+	subPay_filter:= bson.M{
+		"subscription_id": subscriptionId,
+	}
+	subPay_updateDetails :=bson.D{{
+		Key:"$set",
+		Value: bson.D{
+		{
+			Key:"status",
+			Value: string(SubscriptionPayCancelled),
+		},	
+	},
+	}}
+
+	_, err:= connect.SubscriptionPaymentCollection.UpdateOne(context.TODO(), subPay_filter, subPay_updateDetails)
+	if err !=nil{
+		fmt.Println("Failed to update payment subscription details", err)
+		return false
+	}
+
+	filter:=bson.M{
+		"user_id":userId,
+	}
+	update:= bson.D{
+		{
+			Key: "$set",
+			Value: bson.D{
+				{
+					Key: "status",
+					Value: string(PlanCancelled),
+				},
+			},
+		},
+	}
+
+	_,err=connect.SubscriptionCollection.UpdateOne(context.TODO(), filter, update)
+	if err!=nil{
+		fmt.Println("Failed to update cancel status", err)
+		return false
+	}
 	
-	return false
+	return true
 	
 }
 
@@ -539,15 +691,13 @@ func handleRazorpayEvent(event RazorpayEvent){
 	switch event.Event {
 	case "payment.captured":
 		p := event.Payload.Payment.Entity
+		payment_ref:=p.Id
 		notes:= p.Notes
 		user_id:=notes["user_id"]
 		subscription_id := notes["subscription_id"]
 		sub_pay_id :=notes["sub_payment_id"]
-		SubscriptionSuccess(user_id, subscription_id, sub_pay_id)
-		// mark success
+		SubscriptionSuccess(user_id, subscription_id, sub_pay_id,payment_ref)
 
-		fmt.Println("p:", p)
-		
 	case "payment.failed":
 		// payment failed
 		p:= event.Payload.Payment.Entity
@@ -556,8 +706,11 @@ func handleRazorpayEvent(event RazorpayEvent){
 		subscription_id := notes["subscription_id"]
 		sub_pay_id :=notes["sub_payment_id"]
 		MarkSubscriptionFailed(user_id, subscription_id, sub_pay_id)
-		fmt.Println("p: ", p)
 		
+	case "refund.created":
+		// refund request
+		fmt.Println("refund created")
+
 	case "refund.processed":
 		p:=event.Payload.Payment.Entity
 		// update refund status

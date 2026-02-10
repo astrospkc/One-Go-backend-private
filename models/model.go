@@ -156,7 +156,6 @@ type SubscriptionPayment struct {
 	PeriodStart     time.Time `bson:"period_start" json:"period_start"`
 	PeriodEnd       time.Time `bson:"period_end" json:"period_end"`
 	IdempotencyKey  string	`bson:"idempotency_key" json:"idempotency_key"`
-	CancelledAt		time.Time `bson:"cancelled_at" json:"cancelled_at"`
 	RefundAmount	float64	 `bson:"refund_amount" json:"refund_amount"`
 	ExpiresAt		time.Time `bson:"expires_at" json:"expires_at"`
 	CreatedAt       time.Time `bson:"created_at" json:"created_at"`

@@ -23,6 +23,7 @@ const (
 	colNameMedia        = "media"
 	colNameSubscription = "subscription"
 	colNameAPI          = "apikey"
+	colNameSubscriptionPayment = "payment"
 )
 
 var UsersCollection *mongo.Collection
@@ -33,6 +34,7 @@ var LinksCollection *mongo.Collection
 var MediaCollection *mongo.Collection
 var SubscriptionCollection *mongo.Collection
 var APIKeyCollection *mongo.Collection
+var SubscriptionPaymentCollection *mongo.Collection
 
 func Connect() {
 	envs := env.NewEnv()
@@ -112,8 +114,8 @@ func Connect() {
 	MediaCollection = client.Database(dbName).Collection(colNameMedia)
 	APIKeyCollection = client.Database(dbName).Collection(colNameAPI)
 	SubscriptionCollection = client.Database(dbName).Collection(colNameSubscription)
-
-	db_collection := []*mongo.Collection{ProjectCollection, BlogsCollection, LinksCollection, APIKeyCollection, ColCollection, UsersCollection, MediaCollection, SubscriptionCollection}
+	SubscriptionPaymentCollection = client.Database(dbName).Collection(colNameSubscriptionPayment)
+	db_collection := []*mongo.Collection{ProjectCollection, BlogsCollection, LinksCollection, APIKeyCollection, ColCollection, UsersCollection, MediaCollection, SubscriptionCollection, SubscriptionPaymentCollection}
 	im := mongo.IndexModel{
 		Keys: bson.D{
 			{Key: "id", Value: -1},

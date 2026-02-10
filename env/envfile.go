@@ -20,6 +20,7 @@ type ENV struct {
 	AIVEN_PORT            int    `mapstructure:"AIVEN_PORT"`
 	RAZORPAY_KEY_ID       string `mapstructure:"RAZORPAY_KEY_ID"`
 	RAZORPAY_KEY_SECRET   string `mapstructure:"RAZORPAY_KEY_SECRET"`
+	RAZORPAY_WEBHOOK_SECRET string `mapstructure:"RAZORPAY_WEBHOOK_SECRET"`
 	GEMINI_API_KEY        string `mapstructure:"GEMINI_API_KEY"`
 }
 

@@ -77,12 +77,15 @@ func RegisterNormalRoutes(app *fiber.App) {
 
 	cfg := config.LoadConfig()
 	paymentGroup := app.Group("/payment", middleware.FetchUser())
+	
 	paymentGroup.Post("/createOrder", controller.CreateOrder(cfg))
 	paymentGroup.Get("/showCheckoutPage", payment.ShowCheckoutPage(cfg))
 	paymentGroup.Post("/subscription/createPaymentLink", controller.CreatePaymentLink())
-	paymentGroup.Get("/subscription/success", controller.SubscriptionSuccess())
+	// paymentGroup.Get("/subscription/success", controller.SubscriptionSuccess())
 	paymentGroup.Get("/subscription/isActive", controller.GetActiveSubscription())
 
+
+	app.Post("/webhooks/razorpay", controller.PaymentWebhook())
 	// paymentGroup.Post("/payment-callback", controller.PaymentCallback(cfg))
 
 	ai := app.Group("/ai", middleware.FetchUser())

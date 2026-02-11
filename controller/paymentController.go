@@ -708,7 +708,8 @@ func handleRazorpayEvent(event RazorpayEvent){
 		MarkSubscriptionFailed(user_id, subscription_id, sub_pay_id)
 		
 	case "refund.created":
-		// refund request
+		// refund request	
+		
 		fmt.Println("refund created")
 
 	case "refund.processed":
@@ -722,4 +723,7 @@ func handleRazorpayEvent(event RazorpayEvent){
 
 	}
 }
+
+
+
 

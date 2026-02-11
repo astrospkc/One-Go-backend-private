@@ -17,7 +17,7 @@ type User struct {
 	APIkey          string `bson:"api_key" json:"api_key"`
 	OTP             string `bson:"otp,omitempty" json:"otp"`
 	OTPVerification string `bson:"otpVerification,omitempty" json:"otpVerification"`
-	Plan            string `bson:"plan,omitempty" json:"plan" default: starter`
+	Plan            string `bson:"plan,omitempty" json:"plan"`
 }
 
 type Collection struct {
@@ -96,30 +96,6 @@ type Link struct {
 
 // category (e.g., Social, Project, Resume)
 
-type Resume struct {
-	Id           string    `bson:"id,omitempty" json:"id"`
-	UserId       string    `bson:"user_id" json:"user_id"`
-	CollectionId string    `bson:"collection_id" json:"collection_id"`
-	FileUrl      string    `bson:"fileurl" json:"fileurl"`
-	UploadData   time.Time `bson:"uploadData" json:"uploadData"`
-}
-
-type SubscriptionPlan struct {
-	Id       primitive.ObjectID `bson:"id,omitempty" json:"id"`
-	Name     string             `bson:"name" json:"name"`
-	Price    string             `bson:"price" json:"price"`
-	Features []string           `bson:"features" json:"features"`
-	Duration string             `bson:"duration" json:"duration"`
-}
-
-type UserSubscription struct {
-	Id        primitive.ObjectID `bson:"id,omitempty" json:"id"`
-	UserId    string             `bson:"user_id" json:"user_id"`
-	PlanId    string             `bson:"plan_id" json:"plan_id"`
-	StartDate time.Time          `bson:"startDate" json:"startDate"`
-	EndDate   time.Time          `bson:"endDate" json:"endDate"`
-	Status    string             `bson:"status" json:"status"`
-}
 
 // status- active or expired
 type APIkey struct {
@@ -136,7 +112,7 @@ type Subscription struct {
 	Id          string    `bson:"id,omitempty" json:"id"`
 	UserId      string    `bson:"user_id" json:"user_id"`
 	Plan        string    `bson:"plan" json:"plan"`     // free, pro,team...
-	Status      string    `bson:"status" json:"status"` // active/canceled/expired
+	Status      string    `bson:"status" json:"status"` // pending/active/canceled/expired
 	StartAt     time.Time `bson:"start_at" json:"start_at"`
 	EndAt       time.Time `bson:"end_at" json:"end_at"`
 	AutoRenew   bool      `bson:"auto_renew" json:"auto_renew"`
@@ -184,15 +160,4 @@ type FeatureAccess struct {
 	UpdatedAt          time.Time `bson:"updated_at" json:"updated_at"`
 }
 
-type Plan struct {
-	ID                 string `bson:"_id,omitempty"`
-	Name               string `bson:"name"`
-	StorageLimit       int64  `bson:"storage_limit"`
-	APIRequestsLimit   int64  `bson:"api_requests_limit"`
-	ProjectsLimit      int    `bson:"projects_limit"`
-	TeamMembersAllowed int    `bson:"team_members_allowed"`
-	CustomDomain       bool   `bson:"custom_domain"`
-	AnalyticsEnabled   bool   `bson:"analytics_enabled"`
-	PrioritySupport    bool   `bson:"priority_support"`
-	PriceMonthly       int64  `bson:"price_monthly"` // INR
-}
+
